@@ -1,0 +1,32 @@
+FeatureFusionAll: N
+Fusion: N
+Nfold: 2
+RunName: SGC_WDR91
+Test: Y
+Train: Y
+desired_columns:
+- ECFP4
+- ECFP6
+desired_models:
+- rf
+evaluation_column:
+- Test_F1 Score
+- Test_Precision
+- Test_Recall
+- Test_Accuracy
+evaluation_file_name: []
+hyperparameters:
+  max_depth: 10
+  n_estimators: 150
+hyperparameters_tuning: N
+label_column_test:
+- LABEL
+label_column_train:
+- LABEL
+nrows_test: None
+nrows_train: None
+num_top_models: 5
+test_data:
+- Data/TestFiles/sampled_data_test_1.parquet
+- Data/TestFiles/sampled_data_test_2.parquet
+train_data: Data/TrainFiles/Comapny1.parquet
