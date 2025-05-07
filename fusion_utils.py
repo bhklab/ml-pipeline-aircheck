@@ -3,10 +3,17 @@
 import pandas as pd
 import os
 import warnings
+import shutil
+import os
+
+import pickle
+import numpy as np
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, matthews_corrcoef, cohen_kappa_score
 #==============================================================================
 def select_best_models(
     RunFolderName,
-    evaluation_file_name='',
+    trainfile_for_modelselection = '',
+    evaluationfile_for_modelselection='',
     evaluation_column=None,
     num_top_models=5,
     Fusion = 'N'):
@@ -27,15 +34,23 @@ def select_best_models(
     df = df.drop_duplicates(subset=drop_cols)
 
     # Filter by TestFile if specified
-    if evaluation_file_name:
-        df = df[df['TestFile'] == evaluation_file_name]
+    if trainfile_for_modelselection:
+        df = df[df['TrainFile'] == trainfile_for_modelselection]
+        
+    # Filter by TestFile if specified
+    if evaluationfile_for_modelselection:
+        df = df[df['TestFile'] == evaluationfile_for_modelselection]
 
     # Sort by specified metric columns in descending order
     df_sorted = df.sort_values(by=evaluation_column, ascending=[False]*len(evaluation_column))
 
-    # Drop duplicates based on ModelPath to get k distinct models
+    # Drop duplicates based on ModelPath
     df_sorted_unique = df_sorted.drop_duplicates(subset=['ModelPath'])
-
+    
+    # Save the sorted unique DataFrame for further analysis
+    sorted_unique_csv_path = os.path.join(RunFolderName, "SortedUniqueResults.csv")
+    df_sorted_unique.to_csv(sorted_unique_csv_path, index=False)
+    
     # Check available distinct models and warn if fewer than num_top_models
     available_models = len(df_sorted_unique)
     if available_models < num_top_models:
@@ -44,11 +59,116 @@ def select_best_models(
 
     # Take top k distinct models
     best_models = df_sorted_unique.head(num_top_models)
+    
 
     # Write model paths to output txt file
     with open(output_txt_path, 'w') as f:
         for path in best_models['ModelPath']:
             f.write(f"{path}\n")
+            
+    # Save Best Models to BestModels Folder 
+    best_models_folder = os.path.join(RunFolderName, "BestModels")
+    os.makedirs(best_models_folder, exist_ok=True)
+    for path in best_models['ModelPath']:
+        model_name = os.path.basename(path)
+        model_file = os.path.join(path, "model.pkl") 
+        
+        if os.path.exists(model_file):
+            # Create the new name with the folder name prefix
+            new_model_name = f"{model_name}_model.pkl"
+            model_save_path = os.path.join(best_models_folder, new_model_name)
+            
+            # Copy the model file with the new name
+            shutil.copy(model_file, model_save_path)
+            print(f"Saved: {model_save_path}")
+        else:
+            print(f"Model file not found in {path}. Skipping.")
+
 
     print(f"Top {num_top_models} distinct model paths written to {output_txt_path}")
 #==============================================================================
+
+
+#==============================================================================
+def fusion_pipeline(
+    RunFolderName,
+    test_paths,
+    column_names,
+    label_column_test,
+    nrows_test,
+    load_data,
+    fuse_columns,
+    evaluate_model,
+    feature_fusion_method):
+    
+    # Path to Best Models
+    best_models_folder = os.path.join(RunFolderName, "BestModels")
+    model_files = [
+        os.path.join(best_models_folder, f) 
+        for f in os.listdir(best_models_folder) 
+        if f.endswith(".pkl")
+    ]
+
+    if not model_files:
+        raise ValueError("No models found in BestModels folder.")
+
+    fusion_results = []
+
+    for test_path in test_paths:
+        # Load test data
+        X_test, Y_test = load_data(test_path, column_names, label_column_test, nrows_test)
+        Y_test_array = np.stack(Y_test.iloc[:, 0])
+
+        # === Feature Fusion (if specified) ===
+        X_test, fused_column_name = fuse_columns(X_test, column_names, feature_fusion_method)
+
+        # Store predictions for fusion
+        y_preds = []
+        y_probas = []
+
+        # Run each model
+        for model_file in model_files:
+            model_name = os.path.basename(model_file).replace(".pkl", "")
+
+            with open(model_file, 'rb') as f:
+                model = pickle.load(f)
+
+            # Make predictions
+            column_name = model_name.split("_")[-2] # Extract the column name from the model name
+            X_test_array = np.stack(X_test[column_name])
+
+
+            y_pred = model.predict(X_test_array)
+            y_proba = model.predict_proba(X_test_array)[:, 1]
+
+            y_preds.append(y_pred)
+            y_probas.append(y_proba)
+
+        # Average predictions and probabilities across all models
+        y_pred_fusion = np.mean(y_preds, axis=0).round().astype(int)
+        y_proba_fusion = np.mean(y_probas, axis=0)
+
+        # Calculate metrics on the fusion results
+        metrics = {
+            "Accuracy": accuracy_score(Y_test_array, y_pred_fusion),
+            "Precision": precision_score(Y_test_array, y_pred_fusion, zero_division=0),
+            "Recall": recall_score(Y_test_array, y_pred_fusion, zero_division=0),
+            "F1 Score": f1_score(Y_test_array, y_pred_fusion, zero_division=0),
+            "AUC-ROC": roc_auc_score(Y_test_array, y_proba_fusion),
+            "MCC": matthews_corrcoef(Y_test_array, y_pred_fusion),
+            "Cohen Kappa": cohen_kappa_score(Y_test_array, y_pred_fusion)
+        }
+
+        # Save results for this test file
+        fusion_result = {
+            "TestFile": os.path.basename(test_path)
+        }
+        fusion_result.update(metrics)
+        fusion_results.append(fusion_result)
+
+    # Save the fusion results in a CSV file
+    fusion_results_df = pd.DataFrame(fusion_results)
+    fusion_results_csv_path = os.path.join(RunFolderName, "FusionResults.csv")
+    fusion_results_df.to_csv(fusion_results_csv_path, index=False)
+
+    print(f"Fusion results saved to {fusion_results_csv_path}")

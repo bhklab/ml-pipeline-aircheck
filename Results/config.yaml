@@ -1,9 +1,11 @@
-FeatureFusionAll: N
-Fusion: N
+Fusion: Y
 Nfold: 2
-RunName: SGC_WDR91
 Test: Y
 Train: Y
+balance_flag: false
+balance_ratios:
+- 1
+- 2
 desired_columns:
 - ECFP4
 - ECFP6
@@ -14,7 +16,8 @@ evaluation_column:
 - Test_Precision
 - Test_Recall
 - Test_Accuracy
-evaluation_file_name: []
+evaluationfile_for_modelselection: []
+feature_fusion_method: None
 hyperparameters:
   max_depth: 10
   n_estimators: 150
@@ -26,7 +29,11 @@ label_column_train:
 nrows_test: None
 nrows_train: None
 num_top_models: 5
+protein_name: WDR91
 test_data:
 - Data/TestFiles/sampled_data_test_1.parquet
 - Data/TestFiles/sampled_data_test_2.parquet
-train_data: Data/TrainFiles/Comapny1.parquet
+train_data:
+- Data/TrainFiles/Comapny1.parquet
+- Data/TrainFiles/Company2.parquet
+trainfile_for_modelselection: []

@@ -1,0 +1,4 @@
+Results\Comapny1_rf_ECFP4
+Results\Comapny1_rf_ECFP6
+Results\Company2_rf_ECFP4
+Results\Company2_rf_ECFP6

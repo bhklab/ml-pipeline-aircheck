@@ -1,7 +1,6 @@
 
 #==========================================================================
-# Run name:
-RunName: "SGC_WDR91" #NameofTrainDataset_Protein
+protein_name: "WDR91" # Protein Name
 Train: 'Y' # Running trian phase (N:for no, Y: for yes)
 Test: 'Y' # Running test phase (N:for no, Y: for yes)
 #==========================================================================
@@ -9,7 +8,7 @@ Test: 'Y' # Running test phase (N:for no, Y: for yes)
 
 # Data:
 #==========================================================================
-train_data: Data/TrainFiles/Comapny1.parquet
+train_data: [Data/TrainFiles/Comapny1.parquet, Data/TrainFiles/Company2.parquet]
 test_data: [Data/TestFiles/sampled_data_test_1.parquet,
             Data/TestFiles/sampled_data_test_2.parquet]
             
@@ -19,7 +18,11 @@ label_column_train: [LABEL]
 label_column_test: [LABEL]
 nrows_train: 'None' # integer or 'None' 
 nrows_test: 'None'
-FeatureFusionAll: 'N' # Concatenating all selected columns, options: N:for no, Y: for yes
+feature_fusion_method: 'None' # options: None, All, Pairwise
+
+# create_balanced_datasets
+balance_flag: False # Creating blanced train sets (True/False)
+balance_ratios: [1, 2] # balance_ratios: [1, 2, 4, 8]
 #==========================================================================
 
 
@@ -48,15 +51,19 @@ desired_models: [rf]
 hyperparameters_tuning: 'N' #  (N:for no, Y: for yes)
 
 # Specifying hyperparameters
-# hyperparameters: {}  # use default
-hyperparameters: {n_estimators: 150, max_depth: 10}
+hyperparameters: {n_estimators: 150, max_depth: 10} # hyperparameters: {}  # use default
 
 # Cross validation
 Nfold: 2 # Number of folds for the Crossfold validatrion method
+#==========================================================================
 
+
+
+#==========================================================================
 # Model selection
-evaluation_file_name: [] # If empty, the top model by desired columns is selected. Exmple: evaluation_file_name: sampled_data_test_1.parquet
-evaluation_column: [Test_F1 Score, Test_Precision, Test_Recall, Test_Accuracy,]
+trainfile_for_modelselection: [] # If empty, the top model by evaluation columns and result on the evaluation set is selected. Example: trainfile_for_modelselection: WDR91_SGC.parquet
+evaluationfile_for_modelselection: [] # If empty, the top model by evaluation columns is selected. Exmple: evaluationfile_for_modelselection: evaluation.parquet
+evaluation_column: [Test_F1 Score, Test_Precision, Test_Recall, Test_Accuracy]
 #==========================================================================
 
 

@@ -7,9 +7,9 @@ def read_config(config_name):
     with open(config_name, 'r') as file:
         config = yaml.safe_load(file)
         
-    RunName = config['RunName']
-    RunFolderName = os.path.join("Results", RunName)
-    os.makedirs(RunFolderName, exist_ok=True) 
+
+    RunFolderName = os.path.join("Results")
+    os.makedirs(RunFolderName, exist_ok=True)
 
 
     # Save config to this path
@@ -20,8 +20,11 @@ def read_config(config_name):
     return config, RunFolderName
 
 def write_results_csv(experiment_results, RunFolderName):
-    # Prepare row with config values
-    results_row = {k: ','.join(v) if isinstance(v, list) else v for k, v in experiment_results.items()}
+    # Convert all values to strings, handling lists properly
+    results_row = {
+        k: ','.join(map(str, v)) if isinstance(v, list) else str(v) 
+        for k, v in experiment_results.items()
+    }
     
     results_csv_path = os.path.join(RunFolderName, "results.csv")
     

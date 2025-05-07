@@ -1,2 +1,0 @@
-train_data,test_data,column_names,label_column_train,label_column_test,nrows_train,nrows_test,FeatureFusion,model
-Data/TrainFiles/Comapny1.parquet,Data/TestFiles/sampled_data_test_1.parquet,"ECFP4,ECFP6",LABEL,LABEL,None,None,N,rf

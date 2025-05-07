@@ -5,7 +5,7 @@ import numpy as np
 
 
 
-# top 100, 2000 metrics??
+# top 100, 2000 metrics?? Number of hits?
 # Threshold??????
 
 
@@ -53,7 +53,7 @@ def test_pipeline(
     load_data,
     fuse_columns,
     evaluate_model,
-    FeatureFusionAll):
+    feature_fusion_method):
     
     if Test.lower() != 'y':
         return
@@ -69,8 +69,7 @@ def test_pipeline(
         Y_test_array = np.stack(Y_test.iloc[:, 0])
 
         # === Feature Fusion  ===
-        if FeatureFusionAll.lower() == 'y':
-            X_test, fused_column_name = fuse_columns(X_test, column_names)
+        X_test, fused_column_name = fuse_columns(X_test, column_names, feature_fusion_method)
 
         for _, row in df.iterrows():
             model_path = row["ModelPath"]

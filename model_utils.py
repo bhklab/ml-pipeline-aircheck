@@ -54,7 +54,7 @@ def train_model(model, X_train, y_train):
 def train_pipeline(
     Train,
     RunFolderName,
-    train_path,
+    train_paths,
     column_names,
     label_column_train,
     nrows_train,
@@ -62,7 +62,7 @@ def train_pipeline(
     hyperparameters_tuning,
     hyperparameters,
     Nfold,
-    FeatureFusionAll,
+    feature_fusion_method,
     load_data,
     fuse_columns,
     get_model,
@@ -72,64 +72,71 @@ def train_pipeline(
     bayesian_hyperparameter_search,
     write_results_csv,
     config):
-    
+
     if Train.lower() != 'y':
         return
 
-    # === Load Training Data ===
-    X_train, Y_train = load_data(train_path, column_names, label_column_train, nrows_train)
-    Y_train_array = np.stack(Y_train.iloc[:, 0])
+    for train_path in train_paths:
+        # Extract the filename without extension for naming
+        train_filename = os.path.basename(train_path).split('.')[0]
 
-    # === Feature Fusion (optional) ===
-    if FeatureFusionAll.lower() == 'y':
-        X_train, fused_column_name = fuse_columns(X_train, column_names)
+        # === Load Training Data ===
+        X_train, Y_train = load_data(train_path, column_names, label_column_train, nrows_train)
+        Y_train_array = np.stack(Y_train.iloc[:, 0])
 
-    for model_name_i in model_names:
-        for column_names_j in column_names:
-            X_train_array = np.stack(X_train[column_names_j])
-            model_subfolder = os.path.join(RunFolderName, f"{model_name_i}_{column_names_j}")
-            os.makedirs(model_subfolder, exist_ok=True)
+        # === Feature Fusion (optional) ===
+        X_train, fused_column_name = fuse_columns(X_train, column_names , feature_fusion_method)
 
-            # === Hyperparameter Tuning ===
-            if hyperparameters_tuning.lower() == 'y':
-                best_params = bayesian_hyperparameter_search(model_name_i, X_train_array, Y_train_array)
-            else:
-                best_params = hyperparameters
+        for model_name_i in model_names:
+            for column_names_j in fused_column_name:
+                X_train_array = np.stack(X_train[column_names_j])
+                
+                # Model subfolder includes train filename
+                model_subfolder = os.path.join(RunFolderName, f"{train_filename}_{model_name_i}_{column_names_j}")
+                os.makedirs(model_subfolder, exist_ok=True)
 
-            # === Cross Validation ===
-            avg_metrics = cross_validate_and_save_models(
-                X_train_array=X_train_array,
-                Y_train_array=Y_train_array,
-                model_name=model_name_i,
-                model_subfolder=model_subfolder,
-                Nfold=Nfold,
-                get_model=get_model,
-                train_model=train_model,
-                evaluate_model=evaluate_model,
-                best_params=best_params
-            )
+                # === Hyperparameter Tuning ===
+                if hyperparameters_tuning.lower() == 'y':
+                    best_params = bayesian_hyperparameter_search(model_name_i, X_train_array, Y_train_array)
+                else:
+                    best_params = hyperparameters
 
-            # === Final Model Training ===
-            train_and_save_final_model(
-                X_train_array,
-                Y_train_array,
-                model_name_i,
-                model_subfolder,
-                get_model,
-                train_model,
-                best_params
-            )
+                # === Cross Validation ===
+                avg_metrics = cross_validate_and_save_models(
+                    X_train_array=X_train_array,
+                    Y_train_array=Y_train_array,
+                    model_name=model_name_i,
+                    model_subfolder=model_subfolder,
+                    Nfold=Nfold,
+                    get_model=get_model,
+                    train_model=train_model,
+                    evaluate_model=evaluate_model,
+                    best_params=best_params
+                )
 
-            # === Save Results ===
-            experiment_results = config.copy()
-            experiment_results["ModelType"] = model_name_i
-            experiment_results["ColumnName"] = column_names_j
-            experiment_results["ModelPath"] = model_subfolder
+                # === Final Model Training ===
+                train_and_save_final_model(
+                    X_train_array,
+                    Y_train_array,
+                    model_name_i,
+                    model_subfolder,
+                    get_model,
+                    train_model,
+                    best_params
+                )
 
-            for key, value in avg_metrics.items():
-                experiment_results[f"CV_{key}"] = value
+                # === Save Results ===
+                experiment_results = config.copy()
+                experiment_results["TrainFileName"] = train_filename
+                experiment_results["ModelType"] = model_name_i
+                experiment_results["ColumnName"] = column_names_j
+                experiment_results["ModelPath"] = model_subfolder
 
-            write_results_csv(experiment_results, RunFolderName)
+                for key, value in avg_metrics.items():
+                    experiment_results[f"CV_{key}"] = value
+
+                write_results_csv(experiment_results, RunFolderName)
+
 #==============================================================================
 #==============================================================================
 def cross_validate_and_save_models(X_train_array, Y_train_array, model_name, model_subfolder, Nfold, get_model, train_model, evaluate_model, best_params):
