@@ -116,7 +116,6 @@ def run_pipeline(config_name="config.yaml"):
         'feature_fusion_method': feature_fusion_method
     }
     fusion_pipeline(**fusion_args)
-
 #==========================================================================
 
 

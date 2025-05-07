@@ -8,8 +8,50 @@ import os
 
 import pickle
 import numpy as np
+import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, matthews_corrcoef, cohen_kappa_score
 #==============================================================================
+# Function to plot radar chart for model metrics
+def plot_model_metrics_radar(df, metric_columns, save_path=""):
+    """
+    Plots a radar chart for model metrics.
+
+    Parameters:
+    - df (pd.DataFrame): DataFrame containing model evaluation metrics.
+    - metric_columns (list): List of metric column names to plot.
+    - save_path (str, optional): Path to save the radar chart image.
+
+    Returns:
+    - None (Displays radar chart and saves if save_path is provided)
+    """
+    # Calculate mean values for each metric
+    metric_values = df[metric_columns].mean().values
+
+    # Make the values a complete loop for radar plot
+    values = list(metric_values) + [metric_values[0]]
+
+    # Radar chart setup
+    angles = np.linspace(0, 2 * np.pi, len(metric_columns), endpoint=False).tolist()
+    angles += angles[:1]  # Closing the loop for the radar chart
+
+    fig, ax = plt.subplots(figsize=(6, 6), subplot_kw=dict(polar=True))
+    ax.fill(angles, values, color='blue', alpha=0.2)
+    ax.plot(angles, values, color='blue', linewidth=2)
+
+    # Add labels
+    ax.set_yticklabels([])
+    ax.set_xticks(angles[:-1])
+    ax.set_xticklabels(metric_columns, fontsize=12)
+    ax.set_title("Model Metrics", fontsize=16, fontweight='bold')
+
+    # Save the plot if save_path is provided
+    if save_path:
+        plt.savefig(save_path)
+        print(f"Radar chart saved at {save_path}")
+
+    plt.show()
+#-----------------------------------------------------------------------------
+
 def select_best_models(
     RunFolderName,
     trainfile_for_modelselection = '',
@@ -86,6 +128,17 @@ def select_best_models(
 
 
     print(f"Top {num_top_models} distinct model paths written to {output_txt_path}")
+    
+    if evaluation_column is not None:
+        # Calculate mean values for the specified evaluation columns
+        radar_data = best_models[evaluation_column].mean().to_dict()
+        
+        # Remove "Test_" prefix from the metric names for the radar plot
+        radar_data_clean = {col.replace("Test_", ""): value for col, value in radar_data.items()}
+        radar_df = pd.DataFrame([radar_data_clean])
+    
+        radar_chart_path = os.path.join(RunFolderName, "RadarChart_TopModels.png")
+        plot_model_metrics_radar(radar_df, list(radar_data_clean.keys()), save_path=radar_chart_path)
 #==============================================================================
 
 

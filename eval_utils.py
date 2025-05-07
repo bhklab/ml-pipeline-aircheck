@@ -101,7 +101,3 @@ def test_pipeline(
 
 
 #------------------------------------------------------------------------------
-
-# NetShape results and save the figure
-# Jmaes Metrics
-# Luca Metrics
