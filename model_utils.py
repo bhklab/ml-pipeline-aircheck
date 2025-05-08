@@ -99,7 +99,7 @@ def train_pipeline(
                 if hyperparameters_tuning.lower() == 'y':
                     best_params = bayesian_hyperparameter_search(model_name_i, X_train_array, Y_train_array)
                 else:
-                    best_params = hyperparameters
+                    best_params = hyperparameters.get(model_name_i, {})
 
                 # === Cross Validation ===
                 avg_metrics = cross_validate_and_save_models(

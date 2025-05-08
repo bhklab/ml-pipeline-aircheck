@@ -27,35 +27,30 @@ def process_column_to_array(df, column_name):
         # Column is already array-like
         return np.stack(df[column_name])
 #==============================================================================
-def load_data(path, column_names, label_column, nrows):
+'''def load_data(path, column_names, label_column, nrows):
     X = read_parquet_file(path, columns=column_names, nrows=None)
     Y = read_parquet_file(path, columns=label_column, nrows=None)
-    return X,Y
+    return X,Y'''
+
+def load_data(path, column_names, label_column, nrows):
+    # Validate nrows
+    if not isinstance(nrows, int) or nrows <= 0:
+        nrows = None  # Read all rows if nrows is invalid
+
+    # Read the full data to check the maximum row count
+    total_rows = len(pd.read_parquet(path, columns=[column_names[0]]))  # Get row count of the first column
+    
+    if nrows is not None and nrows > total_rows:
+        print(f"Warning: Specified nrows ({nrows}) exceeds total rows ({total_rows}). Using all rows instead.")
+        nrows = None  # Use all rows if nrows exceeds available rows
+
+    # Load data with the corrected nrows
+    X = read_parquet_file(path, columns=column_names, nrows=nrows)
+    Y = read_parquet_file(path, columns=label_column, nrows=nrows)
+    
+    return X, Y
+
 #==============================================================================
-'''def fuse_columns(X, column_names):
-    """
-    Fuses multiple array-like columns from a DataFrame into a single new column.
-
-    Parameters:
-    - X: pd.DataFrame
-    - column_names: list of str — column names to be fused
-
-    Returns:
-    - X: updated DataFrame with new fused column
-    - fused_column_name: name of the new fused column
-    """
-    fused_column_name = "_".join(column_names)
-    
-    for j, column_name in enumerate(column_names):  
-        current_array = np.stack(X[column_name])
-        if j == 0:
-            fused_array = current_array
-        else:
-            fused_array = np.concatenate((fused_array, current_array), axis=1)
-    
-    X[fused_column_name] = list(fused_array)
-    return X, fused_column_name'''
-
 def fuse_columns(X, column_names, feature_fusion_method=None):
     """
     Fuses multiple array-like columns from a DataFrame into a single new column.

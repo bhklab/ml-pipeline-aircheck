@@ -51,7 +51,8 @@ desired_models: [rf]
 hyperparameters_tuning: 'N' #  (N:for no, Y: for yes)
 
 # Specifying hyperparameters
-hyperparameters: {n_estimators: 150, max_depth: 10} # hyperparameters: {}  # use default
+hyperparameters: {rf:{n_estimators: 150, max_depth: 10},
+                  nb:{n_estimators: 150, max_depth: 10},} # hyperparameters: {}  # use default
 
 # Cross validation
 Nfold: 2 # Number of folds for the Crossfold validatrion method
@@ -63,7 +64,7 @@ Nfold: 2 # Number of folds for the Crossfold validatrion method
 # Model selection
 trainfile_for_modelselection: [] # If empty, the top model by evaluation columns and result on the evaluation set is selected. Example: trainfile_for_modelselection: WDR91_SGC.parquet
 evaluationfile_for_modelselection: [] # If empty, the top model by evaluation columns is selected. Exmple: evaluationfile_for_modelselection: evaluation.parquet
-evaluation_column: [Test_F1 Score, Test_Precision, Test_Recall, Test_Accuracy]
+evaluation_column: [Test_F1 Score, Test_Precision, Test_Recall, Test_Accuracy, Test_PlatePPV, Test_DivPlatePPV]
 #==========================================================================
 
 

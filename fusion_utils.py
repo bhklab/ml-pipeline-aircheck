@@ -9,6 +9,7 @@ import os
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
+from eval_utils import calculate_metrics
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, matthews_corrcoef, cohen_kappa_score
 #==============================================================================
 # Function to plot radar chart for model metrics
@@ -200,17 +201,9 @@ def fusion_pipeline(
         # Average predictions and probabilities across all models
         y_pred_fusion = np.mean(y_preds, axis=0).round().astype(int)
         y_proba_fusion = np.mean(y_probas, axis=0)
-
+        
         # Calculate metrics on the fusion results
-        metrics = {
-            "Accuracy": accuracy_score(Y_test_array, y_pred_fusion),
-            "Precision": precision_score(Y_test_array, y_pred_fusion, zero_division=0),
-            "Recall": recall_score(Y_test_array, y_pred_fusion, zero_division=0),
-            "F1 Score": f1_score(Y_test_array, y_pred_fusion, zero_division=0),
-            "AUC-ROC": roc_auc_score(Y_test_array, y_proba_fusion),
-            "MCC": matthews_corrcoef(Y_test_array, y_pred_fusion),
-            "Cohen Kappa": cohen_kappa_score(Y_test_array, y_pred_fusion)
-        }
+        metrics = calculate_metrics(X_test_array, Y_test_array, y_pred_fusion, y_proba_fusion)
 
         # Save results for this test file
         fusion_result = {

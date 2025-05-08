@@ -2,8 +2,10 @@ import yaml
 import pandas as pd
 import os
 from datetime import datetime
-
+#==============================================================================
 def read_config(config_name):
+    validate_config(config_name)
+    
     with open(config_name, 'r') as file:
         config = yaml.safe_load(file)
         
@@ -18,7 +20,7 @@ def read_config(config_name):
         yaml.dump(config, f)
 
     return config, RunFolderName
-
+#==============================================================================
 def write_results_csv(experiment_results, RunFolderName):
     # Convert all values to strings, handling lists properly
     results_row = {
@@ -43,13 +45,67 @@ def write_results_csv(experiment_results, RunFolderName):
     df_existing = pd.concat([df_existing, pd.DataFrame([results_row])], ignore_index=True)
     df_existing.to_csv(results_csv_path, index=False)
 
+#==============================================================================
+# Function to validate the configuration file
+def validate_config(config_path):
+    with open(config_path, 'r') as file:
+        config = yaml.safe_load(file)
 
-'''def CheckConfigFile:
-    # Check if n,y is correct for fusion
-    # Checking all config entries and raise error if not correct
-    # label file should be just one string and check if it exists
-    # if n_rows is not None, check if it is integer and in range and convert to number from string'
-    # Checking the correct input format and raising error if not!!!!!!!!!!!!!!!!!Label should be one string, the other one should be a list
-    # label and columns should be as a list in 
-    # Column and label should exist in the dataset
-    '''
+    errors = []
+
+    # Validate Train and Test
+    if config.get('Train') not in ['Y', 'N']:
+        errors.append("Train must be 'Y' or 'N'.")
+
+    if config.get('Test') not in ['Y', 'N']:
+        errors.append("Test must be 'Y' or 'N'.")
+
+    # Validate Train and Test Data Paths
+    if not isinstance(config.get('train_data'), list):
+        errors.append("train_data must be a list of paths.")
+    else:
+        for path in config['train_data']:
+            if not os.path.exists(path):
+                errors.append(f"Train data path not found: {path}")
+
+    if not isinstance(config.get('test_data'), list):
+        errors.append("test_data must be a list of paths.")
+    else:
+        for path in config['test_data']:
+            if not os.path.exists(path):
+                errors.append(f"Test data path not found: {path}")
+
+    # Validate desired columns
+    if not isinstance(config.get('desired_columns'), list):
+        errors.append("desired_columns must be a list of column names.")
+
+    # Validate Model Names
+    supported_models = ['rf', 'lr', 'ridge', 'sgd', 'perceptron', 'svc', 'nb', 'dt', 'knn', 'gb', 'ada', 'bag', 'mlp']
+    if not isinstance(config.get('desired_models'), list):
+        errors.append("desired_models must be a list.")
+    else:
+        for model in config['desired_models']:
+            if model not in supported_models:
+                errors.append(f"Unsupported model: {model}")
+
+    # Validate Hyperparameters
+    if not isinstance(config.get('hyperparameters'), dict):
+        errors.append("hyperparameters must be a dictionary.")
+
+    # Validate Cross-Validation
+    if not isinstance(config.get('Nfold'), int) or config['Nfold'] < 2:
+        errors.append("Nfold must be an integer greater than 1.")
+
+    # Set default values if missing
+    if 'Fusion' not in config:
+        config['Fusion'] = 'N'
+
+    if 'num_top_models' not in config:
+        config['num_top_models'] = 5
+
+    # Output errors or return validated config
+    if errors:
+        raise ValueError("Configuration Error:\n" + "\n".join(errors))
+
+    print("Configuration is valid.")
+    return config

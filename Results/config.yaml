@@ -1,4 +1,4 @@
-Fusion: Y
+Fusion: N
 Nfold: 2
 Test: Y
 Train: Y
@@ -16,11 +16,17 @@ evaluation_column:
 - Test_Precision
 - Test_Recall
 - Test_Accuracy
+- Test_PlatePPV
+- Test_DivPlatePPV
 evaluationfile_for_modelselection: []
 feature_fusion_method: None
 hyperparameters:
-  max_depth: 10
-  n_estimators: 150
+  nb:
+    max_depth: 10
+    n_estimators: 150
+  rf:
+    max_depth: 10
+    n_estimato: 150
 hyperparameters_tuning: N
 label_column_test:
 - LABEL
