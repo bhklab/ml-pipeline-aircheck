@@ -4,3 +4,6 @@ scikit-learn
 PyYAML
 catboost
 scikit-optimize
+matplotlib 
+tqdm  
+rdkit
