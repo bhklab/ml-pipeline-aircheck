@@ -26,7 +26,7 @@ hyperparameters:
     n_estimators: 150
   rf:
     max_depth: 10
-    n_estimato: 150
+    n_estimators: 150
 hyperparameters_tuning: N
 label_column_test:
 - LABEL
