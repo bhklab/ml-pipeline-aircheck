@@ -2,12 +2,13 @@ import yaml
 import pandas as pd
 import os
 from datetime import datetime
+import warnings
 #==============================================================================
 def read_config(config_name):
-    validate_config(config_name)
+    config = validate_config(config_name)
     
-    with open(config_name, 'r') as file:
-        config = yaml.safe_load(file)
+    '''with open(config_name, 'r') as file:
+        config = yaml.safe_load(file)'''
         
 
     RunFolderName = os.path.join("Results")
@@ -48,19 +49,53 @@ def write_results_csv(experiment_results, RunFolderName):
 #==============================================================================
 # Function to validate the configuration file
 def validate_config(config_path):
-    with open(config_path, 'r') as file:
-        config = yaml.safe_load(file)
-
     errors = []
+    #-------------------------------
+    with open(config_path, 'r') as file:
+        config = yaml.safe_load(file) 
+    #-------------------------------
+    # Default values for missing keys
+    default_values = {
+        'protein_name': 'protein_name',
+        'Train': 'N',
+        'Test': 'N',
+        'train_data': [],
+        'test_data': [],
+        'desired_columns': ['ECFP4'],
+        'label_column_train': ['LABEL'],
+        'label_column_test': ['LABEL'],
+        'nrows_train': None,
+        'nrows_test': None,
+        'feature_fusion_method': 'None',
+        'balance_flag': False,
+        'balance_ratios': [1],
+        'desired_models': ['rf'],
+        'hyperparameters_tuning': 'N',
+        'hyperparameters': {},
+        'Nfold': 2,
+        'trainfile_for_modelselection': [],
+        'evaluationfile_for_modelselection': [],
+        'evaluation_column': ['Test_F1 Score', 'Test_Precision', 'Test_Recall', 'Test_Accuracy', 'Test_PlatePPV', 'Test_DivPlatePPV'],
+        'Fusion': 'N',
+        'num_top_models': 5
+    }
+    
+    # Set default values and warn user
+    for key, default_value in default_values.items():
+        if key not in config:
+            config[key] = default_value
+            warnings.warn(f"Config key '{key}' missing. Default value '{default_value}' has been set.")
 
-    # Validate Train and Test
-    if config.get('Train') not in ['Y', 'N']:
-        errors.append("Train must be 'Y' or 'N'.")
+    #--------------------------------
 
-    if config.get('Test') not in ['Y', 'N']:
-        errors.append("Test must be 'Y' or 'N'.")
+    # Validate Train and Test (Required)
+    if config.get('Train') not in ['Y', 'N', 'n', 'y']:
+        errors.append("The 'Train' field is required in the configuration file and must be set to 'Y/y' (yes) or 'N/n' (no).")
 
-    # Validate Train and Test Data Paths
+    if config.get('Test') not in ['Y', 'N', 'n', 'y']:
+        errors.append("The 'Test' field is required in the configuration file and must be set to 'Y/y' (yes) or 'N/n' (no).")
+
+    # Validate Train and Test Data Paths (Required)
     if not isinstance(config.get('train_data'), list):
         errors.append("train_data must be a list of paths.")
     else:
@@ -75,12 +110,43 @@ def validate_config(config_path):
             if not os.path.exists(path):
                 errors.append(f"Test data path not found: {path}")
 
-    # Validate desired columns
+    # Validate Desired Columns (Default: Empty List)
     if not isinstance(config.get('desired_columns'), list):
-        errors.append("desired_columns must be a list of column names.")
+        config['desired_columns'] = []  # Default value
 
-    # Validate Model Names
-    supported_models = ['rf', 'lr', 'ridge', 'sgd', 'perceptron', 'svc', 'nb', 'dt', 'knn', 'gb', 'ada', 'bag', 'mlp']
+    # Validate Label Columns (Required)
+    if not isinstance(config.get('label_column_train'), list):
+        errors.append("label_column_train must be a list.")
+    if not isinstance(config.get('label_column_test'), list):
+        errors.append("label_column_test must be a list.")
+
+    # Validate Number of Rows for Train and Test (Default: None)
+    if not isinstance(config.get('nrows_train'), (int, str)):
+        config['nrows_train'] = None
+    elif isinstance(config.get('nrows_train'), str) and config['nrows_train'].lower() == 'none':
+        config['nrows_train'] = None
+
+    if not isinstance(config.get('nrows_test'), (int, str)):
+        config['nrows_test'] = None
+    elif isinstance(config.get('nrows_test'), str) and config['nrows_test'].lower() == 'none':
+        config['nrows_test'] = None
+
+    # Validate Feature Fusion Method (Default: None)
+    valid_fusion_methods = ['None', 'All', 'Pairwise']
+    if config.get('feature_fusion_method') not in valid_fusion_methods:
+        config['feature_fusion_method'] = 'None'
+
+    # Validate Balance Settings (Defaults)
+    if not isinstance(config.get('balance_flag'), bool):
+        config['balance_flag'] = False
+
+    if not isinstance(config.get('balance_ratios'), list):
+        config['balance_ratios'] = [1, 2]
+
+    # Validate Model Names (Required)
+    supported_models = ['rf', 'lr', 'ridge', 'sgd', 'perceptron', 'svc', 'nb', 
+                        'dt', 'knn', 'gb', 'ada', 'bag', 'mlp']
+    
     if not isinstance(config.get('desired_models'), list):
         errors.append("desired_models must be a list.")
     else:
@@ -88,24 +154,40 @@ def validate_config(config_path):
             if model not in supported_models:
                 errors.append(f"Unsupported model: {model}")
 
-    # Validate Hyperparameters
+    # Validate Hyperparameters (Default: Empty Dict)
     if not isinstance(config.get('hyperparameters'), dict):
-        errors.append("hyperparameters must be a dictionary.")
+        config['hyperparameters'] = {}
 
-    # Validate Cross-Validation
+    # Validate Hyperparameter Tuning (Default: 'N')
+    if config.get('hyperparameters_tuning') not in ['Y', 'N']:
+        config['hyperparameters_tuning'] = 'N'
+
+    # Validate Cross-Validation (Default: 2)
     if not isinstance(config.get('Nfold'), int) or config['Nfold'] < 2:
-        errors.append("Nfold must be an integer greater than 1.")
+        config['Nfold'] = 2
 
-    # Set default values if missing
-    if 'Fusion' not in config:
-        config['Fusion'] = 'N'
+    # Validate Model Selection (Defaults)
+    if not isinstance(config.get('trainfile_for_modelselection'), list):
+        config['trainfile_for_modelselection'] = []
 
-    if 'num_top_models' not in config:
+    if not isinstance(config.get('evaluationfile_for_modelselection'), list):
+        config['evaluationfile_for_modelselection'] = []
+
+    if not isinstance(config.get('evaluation_column'), list):
+        config['evaluation_column'] = ['Test_F1 Score', 'Test_Precision', 'Test_Recall']
+
+    # Validate Fusion Settings (Defaults)
+    if config.get('Fusion') not in ['Y', 'N', 'n', 'y']:
+        errors.append("The 'Fusion' field is required in the configuration file and must be set to 'Y/y' (yes) or 'N/n' (no).")
+
+    if not isinstance(config.get('num_top_models'), int) or config['num_top_models'] <= 0:
         config['num_top_models'] = 5
 
     # Output errors or return validated config
     if errors:
         raise ValueError("Configuration Error:\n" + "\n".join(errors))
 
-    print("Configuration is valid.")
+    print("Configuration is valid and complete.")
     return config
+#==============================================================================
+

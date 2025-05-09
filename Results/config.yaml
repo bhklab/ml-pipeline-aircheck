@@ -32,8 +32,8 @@ label_column_test:
 - LABEL
 label_column_train:
 - LABEL
-nrows_test: None
-nrows_train: None
+nrows_test: null
+nrows_train: null
 num_top_models: 5
 protein_name: WDR91
 test_data:
