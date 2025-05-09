@@ -4,6 +4,25 @@
 
 The AIRCHECK ML Pipeline is a modular machine learning pipeline for model training, evaluation, and selection. It supports multiple machine learning models, automatic hyperparameter tuning, and model fusion.
 
+aircheck_ml_pipeline/
+│
+├── runner.py                  # Main script to run the entire pipeline
+├── config.yaml                # Configuration file with all pipeline settings
+│
+├── data_utils.py              # Functions for data loading, processing, and balancing
+├── model_utils.py             # Functions for model training, initialization, and tuning
+├── eval_utils.py              # Functions for model evaluation and metric calculation
+├── fusion_utils.py            # Functions for model selection, fusion, and radar plot generation
+├── config_utils.py            # Utilities for reading, validating, and writing the configuration file
+│
+├── Results/                   # Directory where results, models, and radar plots are saved
+│   ├── BestModels/            # Best models selected for fusion
+│   ├── BestModels.txt         # List of best models' paths
+│   ├── FusionResults.csv      # Fusion results across top models
+│   ├── RadarChart_TopModels.png # Radar chart visualizing top model performance
+│   └── results.csv            # Model training and test metrics
+
+
 ## Key Features
 
 * Supports multiple ML models (Random Forest, Logistic Regression, SVM, Gradient Boosting, etc.)
