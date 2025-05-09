@@ -1,4 +1,5 @@
 #==========================================================================
+# Import necessary modules and utility functions from other scripts
 from data_utils import load_data, fuse_columns
 from data_utils import create_balanced_datasets
 from model_utils import get_model, train_model
@@ -12,15 +13,18 @@ from fusion_utils import fusion_pipeline
 #==========================================================================
 
 
-
-
-
 #==========================================================================
 def run_pipeline(config_name="config.yaml"):
+    """
+    Main function to execute the AIRCHECK ML pipeline.
+    Loads configuration, initiates training, testing, model selection, and fusion.
+    """
     
     #==============================================================================
-    # Load and check config
+    # Load and validate configuration file
     config, RunFolderName = read_config(config_name)  
+    
+    # Extract necessary parameters from the configuration file
     protein_name = config['protein_name']
     train_paths = config['train_data']
     test_paths = config['test_data']
@@ -44,6 +48,8 @@ def run_pipeline(config_name="config.yaml"):
     balance_flag = config['balance_flag']
     balance_ratios = config['balance_ratios']
     #==============================================================================
+
+    # Prepare training paths based on balance settings
     kwargs = {
         "train_paths": train_paths,
         "label_column": label_column_train,
@@ -51,7 +57,9 @@ def run_pipeline(config_name="config.yaml"):
         "balance_flag": balance_flag
     }   
     train_paths = create_balanced_datasets(**kwargs)
+
     #==============================================================================
+    # Prepare training arguments for the train pipeline function
     train_args = {
         "Train": Train,
         "RunFolderName": RunFolderName,
@@ -74,10 +82,11 @@ def run_pipeline(config_name="config.yaml"):
         "write_results_csv": write_results_csv,
         "config": config
     }
+    # Execute the training pipeline
     train_pipeline(**train_args)
     
     #==============================================================================
-    # Test
+    # Prepare testing arguments for the test pipeline function
     test_args = {
         'Test': Test,
         'RunFolderName': RunFolderName,
@@ -90,9 +99,11 @@ def run_pipeline(config_name="config.yaml"):
         'evaluate_model': evaluate_model,
         'feature_fusion_method': feature_fusion_method
     }   
+    # Execute the testing pipeline
     test_pipeline(**test_args)
     #==============================================================================
-    # Model Selection
+
+    # Prepare model selection arguments
     model_selection_args = {
         'RunFolderName': RunFolderName,
         'trainfile_for_modelselection': trainfile_for_modelselection,
@@ -101,9 +112,11 @@ def run_pipeline(config_name="config.yaml"):
         'num_top_models': num_top_models,
         'Fusion': Fusion                      
     }
+    # Execute model selection to find the best models
     select_best_models(**model_selection_args)
     #==============================================================================
-    # Score Fusion
+
+    # Prepare score fusion arguments for the fusion pipeline function
     fusion_args = {
         'RunFolderName': RunFolderName,
         'test_paths': test_paths,
@@ -115,12 +128,11 @@ def run_pipeline(config_name="config.yaml"):
         'evaluate_model': evaluate_model,
         'feature_fusion_method': feature_fusion_method
     }
+    # Execute the fusion pipeline to combine the top models
     fusion_pipeline(**fusion_args)
 #==========================================================================
 
 
-# Example usage
+# Example usage: Execute the pipeline if the script is run directly
 if __name__ == "__main__":
     run_pipeline()
-
-

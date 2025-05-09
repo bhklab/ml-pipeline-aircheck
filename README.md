@@ -9,7 +9,7 @@ The AIRCHECK ML Pipeline is a modular machine learning pipeline for model traini
 
 ```
 aircheck_ml_pipeline/
-├── runner.py                  # Main script to run the entire pipeline
+├── aircheck_pipeline.py                  # Main script to run the entire pipeline
 ├── config.yaml                # Configuration file with all pipeline settings
 │
 ├── data_utils.py              # Functions for data loading, processing, and balancing
@@ -38,7 +38,7 @@ aircheck_ml_pipeline/
 
 ## Project Structure
 
-* **`runner.py`**: Main script to run the entire pipeline.
+* **`aircheck_pipeline.py`**: Main script to run the entire pipeline.
 * **`config.yaml`**: Configuration file that defines data paths, model settings, and evaluation criteria.
 * **`config_utils.py`**: Utilities for reading, validating, and writing the configuration file.
 * **`data_utils.py`**: Functions for data loading, processing, and balancing.
@@ -61,7 +61,7 @@ aircheck_ml_pipeline/
 ### 2. Run the Pipeline
 
 ```bash
-python runner.py
+python aircheck_pipeline.py
 ```
 
 ### 3. Check the Results
