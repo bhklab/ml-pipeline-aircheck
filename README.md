@@ -6,7 +6,11 @@ The AIRCHECK ML Pipeline is a modular machine learning pipeline for model traini
 
 
 ## Project Structure
+
+
 '''
+
+
 aircheck_ml_pipeline/
 │
 ├── runner.py                  # Main script to run the entire pipeline
@@ -24,6 +28,8 @@ aircheck_ml_pipeline/
 │   ├── FusionResults.csv      # Fusion results across top models
 │   ├── RadarChart_TopModels.png # Radar chart visualizing top model performance
 │   └── results.csv            # Model training and test metrics
+
+
 '''
 
 ## Key Features
