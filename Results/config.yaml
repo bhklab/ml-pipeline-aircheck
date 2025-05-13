@@ -1,0 +1,52 @@
+Fusion: N
+Nfold: 2
+Test: Y
+Train: Y
+balance_flag: false
+balance_ratios:
+- 1
+- 2
+crossvalidation_column:
+- CV_F1 Score
+- CV_Precision
+- CV_Recall
+- CV_Accuracy
+- CV_PlatePPV
+- CV_DivPlatePPV
+desired_columns:
+- ECFP4
+- ECFP6
+desired_models:
+- rf
+evaluation_column:
+- Test_F1 Score
+- Test_Precision
+- Test_Recall
+- Test_Accuracy
+- Test_PlatePPV
+- Test_DivPlatePPV
+evaluationfile_for_modelselection: []
+feature_fusion_method: None
+hyperparameters:
+  nb:
+    max_depth: 10
+    n_estimators: 150
+  rf:
+    max_depth: 10
+    n_estimators: 150
+hyperparameters_tuning: N
+label_column_test:
+- LABEL
+label_column_train:
+- LABEL
+nrows_test: null
+nrows_train: null
+num_top_models: 5
+protein_name: WDR91
+test_data:
+- Data/TestFiles/sampled_data_test_1.parquet
+- Data/TestFiles/sampled_data_test_2.parquet
+train_data:
+- Data/TrainFiles/Comapny1.parquet
+- Data/TrainFiles/Company2.parquet
+trainfile_for_modelselection: []
