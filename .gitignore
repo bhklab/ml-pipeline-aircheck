@@ -1,3 +1,5 @@
 .vs/
 Temporary.py
 Data/
+Results/
+__pycache__/
