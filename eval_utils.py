@@ -125,6 +125,12 @@ def test_pipeline(
         return
 
     results_path = os.path.join(RunFolderName, "results.csv")
+    
+    # Check if results.csv exists
+    if not os.path.exists(results_path):
+        print("Error: 'results.csv' not found. Please ensure you have run the training phase before testing.")
+        return
+
     df = pd.read_csv(results_path)
 
     updated_rows = []
@@ -149,6 +155,11 @@ def test_pipeline(
             except KeyError:
                 print(f"Column '{column_name}' not in test file: {test_path}. Skipping.")
                 continue
+            
+            # Check if the model file exists
+            if not os.path.exists(model_path):
+                print(f"Error: Model file not found at '{model_path}'. Please ensure the model was saved correctly during training.")
+                raise SystemExit("Terminating: Model file missing.")
 
             with open(model_path, 'rb') as f:
                 model = pickle.load(f)
@@ -164,6 +175,4 @@ def test_pipeline(
 
     df_updated = pd.DataFrame(updated_rows)
     df_updated.to_csv(results_path, index=False)
-
-
 #------------------------------------------------------------------------------

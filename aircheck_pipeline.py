@@ -43,6 +43,7 @@ def run_pipeline(config_name="config.yaml"):
     trainfile_for_modelselection = config['trainfile_for_modelselection']
     evaluationfile_for_modelselection = config['evaluationfile_for_modelselection']
     evaluation_column = config['evaluation_column']
+    crossvalidation_column = config['crossvalidation_column']
     Fusion = config['Fusion']
     num_top_models = config['num_top_models']
     balance_flag = config['balance_flag']
@@ -108,7 +109,8 @@ def run_pipeline(config_name="config.yaml"):
         'RunFolderName': RunFolderName,
         'trainfile_for_modelselection': trainfile_for_modelselection,
         'evaluationfile_for_modelselection': evaluationfile_for_modelselection,   
-        'evaluation_column': evaluation_column,        
+        'evaluation_column': evaluation_column,
+        'crossvalidation_column': crossvalidation_column,       
         'num_top_models': num_top_models,
         'Fusion': Fusion                      
     }

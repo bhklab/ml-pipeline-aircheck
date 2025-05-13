@@ -76,6 +76,7 @@ def validate_config(config_path):
         'trainfile_for_modelselection': [],
         'evaluationfile_for_modelselection': [],
         'evaluation_column': ['Test_F1 Score', 'Test_Precision', 'Test_Recall', 'Test_Accuracy', 'Test_PlatePPV', 'Test_DivPlatePPV'],
+        'crossvalidation_column': ['CV_F1 Score', 'CV_Precision', 'CV_Recall', 'CV_Accuracy', 'CV_PlatePPV', 'CV_DivPlatePPV'],
         'Fusion': 'N',
         'num_top_models': 5
     }
@@ -174,7 +175,10 @@ def validate_config(config_path):
         config['evaluationfile_for_modelselection'] = []
 
     if not isinstance(config.get('evaluation_column'), list):
-        config['evaluation_column'] = ['Test_F1 Score', 'Test_Precision', 'Test_Recall']
+        config['evaluation_column'] = ['Test_F1 Score', 'Test_Precision', 'Test_Recall', 'Test_Accuracy', 'Test_PlatePPV', 'Test_DivPlatePPV']
+        
+    if not isinstance(config.get('crossvalidation_column'), list):
+        config['crossvalidation_column'] = ['CV_F1 Score', 'CV_Precision', 'CV_Recall', 'CV_Accuracy', 'CV_PlatePPV', 'CV_DivPlatePPV']
 
     # Validate Fusion Settings (Defaults)
     if config.get('Fusion') not in ['Y', 'N', 'n', 'y']:

@@ -1,1 +1,1 @@
-Results\Comapny1_rf_ECFP6
+Results\Comapny1_rf_ECFP4

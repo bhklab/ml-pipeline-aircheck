@@ -6,6 +6,13 @@ balance_flag: false
 balance_ratios:
 - 1
 - 2
+crossvalidation_column:
+- CV_F1 Score
+- CV_Precision
+- CV_Recall
+- CV_Accuracy
+- CV_PlatePPV
+- CV_DivPlatePPV
 desired_columns:
 - ECFP4
 - ECFP6

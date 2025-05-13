@@ -57,7 +57,8 @@ def select_best_models(
     RunFolderName,
     trainfile_for_modelselection = '',
     evaluationfile_for_modelselection='',
-    evaluation_column=None,
+    evaluation_column= None,
+    crossvalidation_column= None,
     num_top_models=5,
     Fusion = 'N'):
     
@@ -85,7 +86,14 @@ def select_best_models(
         df = df[df['TestFile'] == evaluationfile_for_modelselection]
 
     # Sort by specified metric columns in descending order
-    df_sorted = df.sort_values(by=evaluation_column, ascending=[False]*len(evaluation_column))
+    # Check if all specified evaluation columns exist in the DataFrame
+    if evaluation_column is not None and all(col in df.columns for col in evaluation_column):
+        df_sorted = df.sort_values(by=evaluation_column, ascending=[False] * len(evaluation_column))
+    elif crossvalidation_column is not None and all(col in df.columns for col in crossvalidation_column):
+        print('based on cv')
+        df_sorted = df.sort_values(by=crossvalidation_column, ascending=[False] * len(crossvalidation_column))
+    else:
+        df_sorted = df  # Keep df as is without sorting
 
     # Drop duplicates based on ModelPath
     df_sorted_unique = df_sorted.drop_duplicates(subset=['ModelPath'])
@@ -130,7 +138,7 @@ def select_best_models(
 
     print(f"Top {num_top_models} distinct model paths written to {output_txt_path}")
     
-    if evaluation_column is not None:
+    if evaluation_column is not None and all(col in df.columns for col in evaluation_column):
         # Calculate mean values for the specified evaluation columns
         radar_data = best_models[evaluation_column].mean().to_dict()
         
@@ -217,4 +225,4 @@ def fusion_pipeline(
     fusion_results_csv_path = os.path.join(RunFolderName, "FusionResults.csv")
     fusion_results_df.to_csv(fusion_results_csv_path, index=False)
 
-    print(f"Fusion results saved to {fusion_results_csv_path}")
+    print(f"Model selection results saved to {fusion_results_csv_path}")
