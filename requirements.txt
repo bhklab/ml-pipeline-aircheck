@@ -1,9 +1,12 @@
+python==3.11
+git+https://github.com/scikit-learn-contrib/MAPIE.git
 pandas
 numpy
 scikit-learn
 PyYAML
 catboost
 scikit-optimize
-matplotlib 
-tqdm  
+matplotlib
+tqdm
 rdkit
+pyarrow

@@ -106,11 +106,17 @@ def fuse_columns(X, column_names, feature_fusion_method=None):
 
 #==============================================================================
 # Changing negative ratio, check if that ratio is possible
-def create_balanced_datasets(
+'''def create_balanced_datasets(
     train_paths,
     label_column,
     balance_ratios=[1, 2, 4],
-    balance_flag=True):
+    balance_flag=True):'''
+def create_balanced_datasets(config):
+    
+    train_paths = config['train_data']
+    label_column = config['label_column_train']
+    balance_ratios = config['balance_ratios']
+    balance_flag = config['balance_flag']
     
     if not balance_flag:
         return train_paths  # Return the original list if not balancing
@@ -166,3 +172,33 @@ def create_balanced_datasets(
 
 
 #==============================================================================
+''' # Extract necessary parameters from the configuration file
+ protein_name = config['protein_name']
+ train_paths = config['train_data']
+ test_paths = config['test_data']
+ model_names = config['desired_models']
+ column_names = config['desired_columns']
+ nrows_train = config['nrows_train']
+ nrows_test = config['nrows_test']  
+ label_column_train = config['label_column_train']
+ label_column_test = config['label_column_test']
+ feature_fusion_method = config['feature_fusion_method']
+ Nfold = config['Nfold']
+ Train = config['Train']
+ Test = config['Test']
+ hyperparameters_tuning = config['hyperparameters_tuning']
+ hyperparameters = config.get('hyperparameters', {})
+ trainfile_for_modelselection = config['trainfile_for_modelselection']
+ evaluationfile_for_modelselection = config['evaluationfile_for_modelselection']
+ evaluation_column = config['evaluation_column']
+ crossvalidation_column = config['crossvalidation_column']
+ Fusion = config['Fusion']
+ num_top_models = config['num_top_models']
+ balance_flag = config['balance_flag']
+ balance_ratios = config['balance_ratios']
+ conformal_prediction = config['conformal_prediction']
+ confromal_test_size =  config ['confromal_test_size']
+ confromal_confidence_level = config ['confromal_confidence_level']'''
+ 
+#==============================================================================
+    

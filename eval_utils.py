@@ -7,6 +7,10 @@ from rdkit.SimDivFilters import rdSimDivPickers
 from rdkit import DataStructs   
 from rdkit.DataStructs  import BulkTanimotoSimilarity
 from tqdm import tqdm 
+import ast
+from sklearn.model_selection import train_test_split
+from mapie.classification import SplitConformalClassifier
+from mapie.metrics.classification import classification_coverage_score
 # top 100, 2000 metrics?? Number of hits?
 # Threshold??????
 
@@ -22,7 +26,7 @@ from sklearn.metrics import (
     cohen_kappa_score,
     classification_report,
     balanced_accuracy_score,
-    average_precision_score
+    average_precision_score,
 )
 #==============================================================================
 def evaluate_model(model, X_test, y_test):
@@ -109,17 +113,24 @@ def cluster_leader_from_array(X, thresh: float = 0.65):
     ]
     return np.array(_cluster_ids)
 #==============================================================================
-def test_pipeline(
-    Test,
-    RunFolderName,
-    test_paths,
-    column_names,
-    label_column_test,
-    nrows_test,
-    load_data,
-    fuse_columns,
-    evaluate_model,
-    feature_fusion_method):
+def test_pipeline(config,
+                  RunFolderName,
+                  load_data,
+                  fuse_columns,
+                  evaluate_model,
+                  get_model,
+                  train_model):
+    
+    Test = config['Test']
+    test_paths = config['test_data']
+    column_names = config['desired_columns']
+    label_column_test = config['label_column_test']
+    nrows_test = config['nrows_test']
+    nrows_train = config['nrows_train']
+    feature_fusion_method = config['feature_fusion_method']
+    conformal_prediction = config['conformal_prediction']
+    confromal_test_size = config['confromal_test_size']
+    confromal_confidence_level = config['confromal_confidence_level']
     
     if Test.lower() != 'y':
         return
@@ -165,6 +176,12 @@ def test_pipeline(
                 model = pickle.load(f)
 
             test_metrics = evaluate_model(model, X_test_array, Y_test_array)
+            
+            
+            if conformal_prediction.lower() == 'y':               
+                [confromal_coverage_score, confromal_confidence_score] = compute_conformal_prediction(get_model, train_model, load_data,fuse_columns,row,nrows_train,feature_fusion_method, X_test_array, Y_test_array)
+                row["confromal_coverage_score"] = confromal_coverage_score
+                row["onfromal_confidence_score"] = confromal_confidence_score
 
             row_result = row.copy()
             for key, value in test_metrics.items():
@@ -176,3 +193,88 @@ def test_pipeline(
     df_updated = pd.DataFrame(updated_rows)
     df_updated.to_csv(results_path, index=False)
 #------------------------------------------------------------------------------
+
+
+def compute_conformal_prediction(get_model, train_model, load_data, fuse_columns, row, nrows_train, feature_fusion_method, X_test_array, Y_test_array):
+    #----
+    model_name = row ["ModelType"]
+    column_names = row["ColumnName"]
+    label_column_train = row["label_column_train"]
+    confromal_test_size = row["confromal_test_size"]
+    confromal_confidence_level= row['confromal_confidence_level']
+    train_path = row["train_path"]
+    model_parameters = row["UsedHyperParameters"]    
+    model_parameters = ast.literal_eval(model_parameters)
+    #-----
+    X_train, Y_train = load_data(train_path, [column_names], [label_column_train], nrows_train)
+    Y_train_array = np.stack(Y_train.iloc[:, 0])
+    X_train, fused_column_name = fuse_columns(X_train, column_names , feature_fusion_method)
+    X_train_array = np.stack(X_train[column_names])
+    #-----
+    
+    #----------------------Conformal prediction ---------------------------
+    # Split train data into training and calibration (conformalization) sets
+    X_train_model, X_calib, y_train_model, y_calib = train_test_split(
+        X_train_array,Y_train_array, test_size= confromal_test_size, random_state=42
+    )
+    
+    base_model = get_model(model_name , model_parameters)
+    base_model.fit(X_train_model, y_train_model)
+    
+    # Wrap with MAPIE
+    mapie = SplitConformalClassifier(
+        estimator=base_model,
+        confidence_level= confromal_confidence_level,
+        prefit=True
+    )
+
+    # Use calibration data to compute nonconformity scores and set the prediction threshold
+    # Run conformal calibration
+    mapie.conformalize(X_calib, y_calib)
+    
+    # Predict sets on test data
+    y_pred, y_pred_set = mapie.predict_set(X_test_array)
+
+    # If we want to select a model based on conformal prediction:
+    # We choose the one that balances high coverage and small prediction sets    
+    # Calculate how often true labels are in the prediction sets
+    confromal_coverage_score = classification_coverage_score(Y_test_array, y_pred_set)
+    #print(f"Effective coverage: {coverage_score[0]:.3f}")
+    
+    # Calculate average number of labels in prediction sets
+    # 1 ≤ avg_set_size ≤ K (K total classes)
+    # 1 → perfect confidence
+    # K → maximum uncertainty
+    avg_set_size = y_pred_set.sum(axis=1).mean()
+    
+    # confidence_score = 1 - (avg_set_size - 1) / (K - 1)
+    # 1: Fully confident, 0: Fully uncertain
+    confromal_confidence_score = 2 - avg_set_size
+    
+    #confromal_coverage_score=1
+    #confromal_confidence_score=1
+    
+    return confromal_coverage_score, confromal_confidence_score
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

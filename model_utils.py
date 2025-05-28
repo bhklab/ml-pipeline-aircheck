@@ -51,27 +51,27 @@ def train_model(model, X_train, y_train):
     return model
 #==============================================================================
 #==============================================================================
-def train_pipeline(
-    Train,
-    RunFolderName,
-    train_paths,
-    column_names,
-    label_column_train,
-    nrows_train,
-    model_names,
-    hyperparameters_tuning,
-    hyperparameters,
-    Nfold,
-    feature_fusion_method,
-    load_data,
-    fuse_columns,
-    get_model,
-    train_model,
-    cross_validate_and_save_models,
-    train_and_save_final_model,
-    bayesian_hyperparameter_search,
-    write_results_csv,
-    config):
+def train_pipeline(config,
+                   RunFolderName,
+                   load_data,
+                   fuse_columns,
+                   get_model,
+                   train_model,
+                   cross_validate_and_save_models,
+                   train_and_save_final_model,
+                   bayesian_hyperparameter_search,
+                   write_results_csv):
+    
+    Train = config['Train']
+    train_paths = config['train_data']
+    column_names = config['desired_columns']
+    label_column_train = config['label_column_train']
+    nrows_train = config['nrows_train']
+    model_names = config['desired_models']
+    hyperparameters_tuning = config['hyperparameters_tuning']
+    hyperparameters = config.get('hyperparameters', {})
+    Nfold = config['Nfold']
+    feature_fusion_method = config['feature_fusion_method']
 
     if Train.lower() != 'y':
         return
@@ -127,10 +127,12 @@ def train_pipeline(
 
                 # === Save Results ===
                 experiment_results = config.copy()
+                experiment_results["train_path"] = train_path
                 experiment_results["TrainFileName"] = train_filename
                 experiment_results["ModelType"] = model_name_i
                 experiment_results["ColumnName"] = column_names_j
                 experiment_results["ModelPath"] = model_subfolder
+                experiment_results["UsedHyperParameters"] = best_params
 
                 for key, value in avg_metrics.items():
                     experiment_results[f"CV_{key}"] = value

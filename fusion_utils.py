@@ -53,14 +53,14 @@ def plot_model_metrics_radar(df, metric_columns, save_path=""):
     plt.show()
 #-----------------------------------------------------------------------------
 
-def select_best_models(
-    RunFolderName,
-    trainfile_for_modelselection = '',
-    evaluationfile_for_modelselection='',
-    evaluation_column= None,
-    crossvalidation_column= None,
-    num_top_models=5,
-    Fusion = 'N'):
+def select_best_models(config, RunFolderName):
+    
+    trainfile_for_modelselection = config['trainfile_for_modelselection']
+    evaluationfile_for_modelselection = config['evaluationfile_for_modelselection']
+    evaluation_column = config['evaluation_column']
+    crossvalidation_column = config['crossvalidation_column']
+    num_top_models = config['num_top_models']
+    Fusion = config['Fusion']
     
     if Fusion.lower() != 'y':
         num_top_models = 1
@@ -152,16 +152,17 @@ def select_best_models(
 
 
 #==============================================================================
-def fusion_pipeline(
-    RunFolderName,
-    test_paths,
-    column_names,
-    label_column_test,
-    nrows_test,
-    load_data,
-    fuse_columns,
-    evaluate_model,
-    feature_fusion_method):
+def fusion_pipeline(config,
+                    RunFolderName,
+                    load_data,
+                    fuse_columns,
+                    evaluate_model):
+    
+    test_paths = config['test_data']
+    column_names = config['desired_columns']
+    label_column_test = config['label_column_test']
+    nrows_test = config['nrows_test']
+    feature_fusion_method = config['feature_fusion_method']
     
     # Path to Best Models
     best_models_folder = os.path.join(RunFolderName, "BestModels")

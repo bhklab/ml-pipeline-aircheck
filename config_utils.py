@@ -78,7 +78,10 @@ def validate_config(config_path):
         'evaluation_column': ['Test_F1 Score', 'Test_Precision', 'Test_Recall', 'Test_Accuracy', 'Test_PlatePPV', 'Test_DivPlatePPV'],
         'crossvalidation_column': ['CV_F1 Score', 'CV_Precision', 'CV_Recall', 'CV_Accuracy', 'CV_PlatePPV', 'CV_DivPlatePPV'],
         'Fusion': 'N',
-        'num_top_models': 5
+        'num_top_models': 5,
+        'conformal_prediction': 'N',
+        'confromal_test_size': 0.3,
+        'confromal_confidence_level': 0.95
     }
     
     # Set default values and warn user
@@ -96,6 +99,9 @@ def validate_config(config_path):
     if config.get('Test') not in ['Y', 'N', 'n', 'y']:
         errors.append("The 'Test' field is required in the configuration file and must be set to 'Y/y' (yes) or 'N/n' (no).")
 
+    if config.get('conformal_prediction') not in ['Y', 'N', 'n', 'y']:
+        errors.append("The 'conformal_prediction' field is required in the configuration file and must be set to 'Y/y' (yes) or 'N/n' (no).")
+        
     # Validate Train and Test Data Paths (Required)
     if not isinstance(config.get('train_data'), list):
         errors.append("train_data must be a list of paths.")
