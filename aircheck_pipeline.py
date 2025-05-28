@@ -22,7 +22,7 @@ def run_pipeline(config_name="config.yaml"):
     
     # Load and validate configuration file
     config, RunFolderName = read_config(config_name)  
-    
+     
 
     # Prepare training paths based on balance settings
     train_paths = create_balanced_datasets(config)

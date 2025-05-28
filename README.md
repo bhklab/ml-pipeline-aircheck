@@ -72,6 +72,9 @@ python aircheck_pipeline.py
   * Model folders with saved models.
   * A `results.csv` file with training and evaluation metrics.
   * A radar plot image (`RadarChart_TopModels.png`) showing the performance of top models.
+  <p align="center">
+  <img src="Results/RadarChart_TopModels.png" alt="Model Metrics" width="600"/>
+  </p>
 
 ## How It Works
 
