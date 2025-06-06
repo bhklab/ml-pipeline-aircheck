@@ -110,6 +110,8 @@ def select_best_models(config, RunFolderName):
 
     # Take top k distinct models
     best_models = df_sorted_unique.head(num_top_models)
+    BestModelsResults_csv_path = os.path.join(RunFolderName, "BestModelsResults.csv")
+    best_models.to_csv(BestModelsResults_csv_path, index=False)
     
 
     # Write model paths to output txt file

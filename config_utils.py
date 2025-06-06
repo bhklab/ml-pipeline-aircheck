@@ -81,9 +81,11 @@ def validate_config(config_path):
         'num_top_models': 5,
         'conformal_prediction': 'N',
         'confromal_test_size': 0.3,
-        'confromal_confidence_level': 0.95
+        'confromal_confidence_level': 0.95,
+        'smiles_column': 'SMILES',
+        'chemistry_filters': 'Y'
     }
-    
+ 
     # Set default values and warn user
     for key, default_value in default_values.items():
         if key not in config:
@@ -98,10 +100,18 @@ def validate_config(config_path):
 
     if config.get('Test') not in ['Y', 'N', 'n', 'y']:
         errors.append("The 'Test' field is required in the configuration file and must be set to 'Y/y' (yes) or 'N/n' (no).")
+        
+    if config.get('chemistry_filters') not in ['Y', 'N', 'n', 'y']:
+        errors.append("The 'chemistry_filters' field is required in the configuration file and must be set to 'Y/y' (yes) or 'N/n' (no).")
 
     if config.get('conformal_prediction') not in ['Y', 'N', 'n', 'y']:
         errors.append("The 'conformal_prediction' field is required in the configuration file and must be set to 'Y/y' (yes) or 'N/n' (no).")
-        
+    # Validate Conformal Test Size and Confidence Level
+    for key in ['confromal_test_size', 'confromal_confidence_level']:
+        value = config.get(key)
+        if not isinstance(value, (float, int)) or not (0 < value < 1):
+            errors.append(f"'{key}' must be a float between 0 and 1. Got: {value}")    
+    
     # Validate Train and Test Data Paths (Required)
     if not isinstance(config.get('train_data'), list):
         errors.append("train_data must be a list of paths.")

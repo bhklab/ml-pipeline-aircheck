@@ -2,6 +2,34 @@ import pandas as pd
 import numpy as np
 import os
 import shutil
+
+
+
+def read_parquet_file(file_path, columns=None, nrows=None):
+    df = pd.read_parquet(file_path, columns=columns, engine='pyarrow')
+    if nrows is not None:
+        df = df.head(nrows)
+    return df
+
+def process_column_to_array(df, column_name):
+    if isinstance(df[column_name].iloc[0], str):
+        # Column is string, needs conversion
+        return np.stack(df[column_name].apply(lambda x: np.fromstring(x, sep=',', dtype=np.float32)))
+    else:
+        # Column is already array-like
+        return np.stack(df[column_name])
+
+
+def convert_columns_to_array(df, column_names):
+    for col in column_names:
+        if isinstance(df[col].iloc[0], str):
+            # Convert comma-separated strings to NumPy arrays in-place
+            df[col] = df[col].apply(lambda x: np.fromstring(x, sep=',', dtype=np.float32))
+        else:
+            # Already array-like (e.g., list), convert to np.array for consistency
+            df[col] = df[col].apply(np.array)
+    return df
+
 #==============================================================================            
 def process_data(X, column_name):
     return np.stack(X[column_name].apply(lambda x: np.fromstring(x, sep=',', dtype=np.float32)))
@@ -169,36 +197,6 @@ def create_balanced_datasets(config):
 
 
     return all_paths
-
-
 #==============================================================================
-''' # Extract necessary parameters from the configuration file
- protein_name = config['protein_name']
- train_paths = config['train_data']
- test_paths = config['test_data']
- model_names = config['desired_models']
- column_names = config['desired_columns']
- nrows_train = config['nrows_train']
- nrows_test = config['nrows_test']  
- label_column_train = config['label_column_train']
- label_column_test = config['label_column_test']
- feature_fusion_method = config['feature_fusion_method']
- Nfold = config['Nfold']
- Train = config['Train']
- Test = config['Test']
- hyperparameters_tuning = config['hyperparameters_tuning']
- hyperparameters = config.get('hyperparameters', {})
- trainfile_for_modelselection = config['trainfile_for_modelselection']
- evaluationfile_for_modelselection = config['evaluationfile_for_modelselection']
- evaluation_column = config['evaluation_column']
- crossvalidation_column = config['crossvalidation_column']
- Fusion = config['Fusion']
- num_top_models = config['num_top_models']
- balance_flag = config['balance_flag']
- balance_ratios = config['balance_ratios']
- conformal_prediction = config['conformal_prediction']
- confromal_test_size =  config ['confromal_test_size']
- confromal_confidence_level = config ['confromal_confidence_level']'''
- 
-#==============================================================================
+
     

@@ -3,11 +3,12 @@
 protein_name: "WDR91" # Protein Name
 Train: 'Y' # Running trian phase (N:for no, Y: for yes)
 Test: 'Y' # Running test phase (N:for no, Y: for yes)
+Screen: 'Y'  # Running test phase (N:for no, Y: for yes)
 #==========================================================================
 
 
 # Data:
-#==========================================================================
+
 train_data: [Data/TrainFiles/Company1.parquet, Data/TrainFiles/Company2.parquet]
 test_data: [Data/TestFiles/sampled_data_test_1.parquet,
             Data/TestFiles/sampled_data_test_2.parquet]
@@ -25,6 +26,13 @@ balance_flag: False # Creating blanced train sets (True/False)
 balance_ratios: [1, 2] # balance_ratios: [1, 2, 4, 8]
 #==========================================================================
 
+
+# Screening:
+#==========================================================================
+screen_data: [Data/ScreenFiles/ScreenData1.csv, Data/ScreenFiles/ScreenData2.csv]
+smiles_column: "SMILES"
+chemistry_filters: 'y' #  (N:for no, Y: for yes)
+#==========================================================================
 
 
 
@@ -80,8 +88,8 @@ crossvalidation_column: [CV_F1 Score, CV_Precision, CV_Recall, CV_Accuracy, CV_P
 
 # Model Fusion
 #==========================================================================
-Fusion: 'N' # Running test phase (N:for no, Y: for yes)
-num_top_models: 5
+Fusion: 'y' # Running test phase (N:for no, Y: for yes)
+num_top_models: 2
 #==========================================================================
 
 

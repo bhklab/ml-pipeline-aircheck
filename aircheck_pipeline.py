@@ -10,6 +10,7 @@ from eval_utils import evaluate_model, test_pipeline
 from config_utils import read_config, write_results_csv
 from fusion_utils import select_best_models 
 from fusion_utils import fusion_pipeline
+from screening_utils import screening_pipeline
 #==========================================================================
 
 
@@ -28,22 +29,25 @@ def run_pipeline(config_name="config.yaml"):
     train_paths = create_balanced_datasets(config)
 
 
-    # Prepare training arguments for the train pipeline function
+    # Execute the training pipeline
     train_pipeline(config, RunFolderName, load_data, fuse_columns, get_model, train_model,
                cross_validate_and_save_models, train_and_save_final_model,
                bayesian_hyperparameter_search, write_results_csv)
     
 
-    # Prepare testing arguments for the test pipeline function
+    # Execute the testing pipeline
     test_pipeline(config, RunFolderName, load_data, fuse_columns, evaluate_model, get_model, train_model)
 
 
-    # Prepare model selection arguments
+    # Execute model selection to find the best models
     select_best_models(config, RunFolderName)
 
 
-    # Prepare score fusion arguments for the fusion pipeline function
+    # Execute the fusion pipeline to combine the top models
     fusion_pipeline(config, RunFolderName, load_data, fuse_columns, evaluate_model)
+    
+    # Virtual Screening: Calculating screening data probability, applying chemistry filters, and clustering results
+    screening_pipeline(config, RunFolderName, load_data, fuse_columns, evaluate_model, get_model, train_model)
 #=========================================================================='''
 
 

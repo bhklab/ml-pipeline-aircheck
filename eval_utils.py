@@ -133,6 +133,7 @@ def test_pipeline(config,
     confromal_confidence_level = config['confromal_confidence_level']
     
     if Test.lower() != 'y':
+        print("The test pipeline doesn’t run because it’s not requested. The test flag in the config file is set to 'N' or 'n'.")
         return
 
     results_path = os.path.join(RunFolderName, "results.csv")
@@ -179,9 +180,9 @@ def test_pipeline(config,
             
             
             if conformal_prediction.lower() == 'y':               
-                [confromal_coverage_score, confromal_confidence_score] = compute_conformal_prediction(get_model, train_model, load_data,fuse_columns,row,nrows_train,feature_fusion_method, X_test_array, Y_test_array)
+                [confromal_coverage_score, confromal_confidence_score, y_pred_set] = compute_conformal_prediction(get_model, train_model, load_data,fuse_columns,row,nrows_train,feature_fusion_method, X_test_array, Y_test_array)
                 row["confromal_coverage_score"] = confromal_coverage_score
-                row["onfromal_confidence_score"] = confromal_confidence_score
+                row["confromal_confidence_score"] = confromal_confidence_score
 
             row_result = row.copy()
             for key, value in test_metrics.items():
@@ -254,7 +255,7 @@ def compute_conformal_prediction(get_model, train_model, load_data, fuse_columns
     #confromal_coverage_score=1
     #confromal_confidence_score=1
     
-    return confromal_coverage_score, confromal_confidence_score
+    return confromal_coverage_score, confromal_confidence_score, y_pred_set
 
 
 
