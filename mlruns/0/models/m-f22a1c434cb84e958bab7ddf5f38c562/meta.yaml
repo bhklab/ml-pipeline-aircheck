@@ -1,0 +1,10 @@
+artifact_location: file:///D:/0000-UHN/ml/ml-pipeline-aircheck/mlruns/0/models/m-f22a1c434cb84e958bab7ddf5f38c562/artifacts
+creation_timestamp: 1750453819843
+experiment_id: '0'
+last_updated_timestamp: 1750453830150
+model_id: m-f22a1c434cb84e958bab7ddf5f38c562
+model_type: null
+name: enthused-elk-904
+source_run_id: c1c9f65c8fbf47e4a7bb7ab84aa52f08
+status: 2
+status_message: null

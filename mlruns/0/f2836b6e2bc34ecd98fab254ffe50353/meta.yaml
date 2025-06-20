@@ -1,0 +1,14 @@
+artifact_uri: file:///D:/0000-UHN/ml/ml-pipeline-aircheck/mlruns/0/f2836b6e2bc34ecd98fab254ffe50353/artifacts
+end_time: 1750453841910
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: f2836b6e2bc34ecd98fab254ffe50353
+run_name: dashing-stag-350
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1750453830224
+status: 3
+tags: []
+user_id: shagh

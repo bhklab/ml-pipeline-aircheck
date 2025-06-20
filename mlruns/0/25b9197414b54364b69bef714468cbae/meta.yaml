@@ -1,0 +1,14 @@
+artifact_uri: file:///D:/0000-UHN/ml/ml-pipeline-aircheck/mlruns/0/25b9197414b54364b69bef714468cbae/artifacts
+end_time: 1750453711486
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 25b9197414b54364b69bef714468cbae
+run_name: classy-fox-924
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1750453700085
+status: 3
+tags: []
+user_id: shagh

@@ -1,0 +1,14 @@
+artifact_uri: file:///D:/0000-UHN/ml/ml-pipeline-aircheck/mlruns/0/338f30b7103748c8ab7ca2c02e6a0752/artifacts
+end_time: 1750453656254
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 338f30b7103748c8ab7ca2c02e6a0752
+run_name: wise-crab-307
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1750453641583
+status: 3
+tags: []
+user_id: shagh

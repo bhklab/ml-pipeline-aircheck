@@ -1,0 +1,10 @@
+artifact_location: file:///D:/0000-UHN/ml/ml-pipeline-aircheck/mlruns/0/models/m-7749cab7260349f389348be4cb364b71/artifacts
+creation_timestamp: 1750453725139
+experiment_id: '0'
+last_updated_timestamp: 1750453734801
+model_id: m-7749cab7260349f389348be4cb364b71
+model_type: null
+name: handsome-rat-468
+source_run_id: 98adcc808e74471190dde0620f5bdf09
+status: 2
+status_message: null

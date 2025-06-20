@@ -1,0 +1,14 @@
+artifact_uri: file:///D:/0000-UHN/ml/ml-pipeline-aircheck/mlruns/0/53ec9c4f3a7145c383d97f4e302d08b3/artifacts
+end_time: 1750453723533
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 53ec9c4f3a7145c383d97f4e302d08b3
+run_name: bouncy-stork-796
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1750453711516
+status: 3
+tags: []
+user_id: shagh

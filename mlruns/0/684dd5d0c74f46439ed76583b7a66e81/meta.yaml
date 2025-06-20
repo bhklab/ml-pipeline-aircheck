@@ -1,0 +1,14 @@
+artifact_uri: file:///D:/0000-UHN/ml/ml-pipeline-aircheck/mlruns/0/684dd5d0c74f46439ed76583b7a66e81/artifacts
+end_time: 1750453641564
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 684dd5d0c74f46439ed76583b7a66e81
+run_name: crawling-skink-6
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1750453626336
+status: 3
+tags: []
+user_id: shagh

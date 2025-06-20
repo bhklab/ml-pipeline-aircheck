@@ -1,0 +1,10 @@
+artifact_location: file:///D:/0000-UHN/ml/ml-pipeline-aircheck/mlruns/0/models/m-28c5ef33c9eb46ad99ac6e74bd897a3e/artifacts
+creation_timestamp: 1750453761862
+experiment_id: '0'
+last_updated_timestamp: 1750453772387
+model_id: m-28c5ef33c9eb46ad99ac6e74bd897a3e
+model_type: null
+name: polite-wasp-990
+source_run_id: 0870c8267f954e97afa7e65186ecdafc
+status: 2
+status_message: null

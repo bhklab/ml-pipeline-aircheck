@@ -1,0 +1,10 @@
+artifact_location: file:///D:/0000-UHN/ml/ml-pipeline-aircheck/mlruns/0/models/m-d99453b6c64d4de29190c95d2b3fad50/artifacts
+creation_timestamp: 1750453564850
+experiment_id: '0'
+last_updated_timestamp: 1750453577173
+model_id: m-d99453b6c64d4de29190c95d2b3fad50
+model_type: null
+name: sincere-pug-373
+source_run_id: 3e5cc843147e455dbfa25ff45e1cefa4
+status: 2
+status_message: null

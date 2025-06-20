@@ -70,9 +70,9 @@ def cluster_screening_results(config, RunFolderName):
 
         # Step 1: Read filtered molecules
         if chemistry_filters.lower() == 'y':
-            filtered_path = os.path.join("Results", f"{base_name}_screen_AfterChemistryFilters.csv")
+            filtered_path = os.path.join(RunFolderName, f"{base_name}_screen_AfterChemistryFilters.csv")
         else:
-            filtered_path = os.path.join("Results", f"ScreenData1_screen.csv") 
+            filtered_path = os.path.join(RunFolderName, f"ScreenData1_screen.csv") 
             
         if not os.path.exists(filtered_path):
             print(f"Missing filtered file: {filtered_path}")
@@ -121,7 +121,7 @@ def cluster_screening_results(config, RunFolderName):
             best_nominees = nominees_filtered.groupby("cluster_id").first().reset_index()
 
         # Save clustered output
-        output_path = os.path.join("Results", f"{base_name}_screen_Clustered.csv")
+        output_path = os.path.join(RunFolderName, f"{base_name}_screen_Clustered.csv")
         best_nominees.to_csv(output_path, index=False)
 
         print(f"Clustered and selected representatives saved to {output_path}")
@@ -137,7 +137,7 @@ def apply_chemistry_filters(config, RunFolderName):
     screen_paths = config['screen_data']
     for screen_path in screen_paths:
         base_name = os.path.splitext(os.path.basename(screen_path))[0]
-        screen_result_path = os.path.join("Results", f"{base_name}_screen.csv")
+        screen_result_path = os.path.join(RunFolderName, f"{base_name}_screen.csv")
         nominees = pd.read_csv(screen_result_path)
         smiles_column = config['smiles_column']    
 
@@ -147,12 +147,12 @@ def apply_chemistry_filters(config, RunFolderName):
         
         # Merge the filter results with nominees
         nominees_filtered = pd.merge(nominees, filter_results, left_index=True, right_index=True)
-        nominees_filtered_path = os.path.join("Results", f"{base_name}_screen_ChemistryFiltersResults.csv")
+        nominees_filtered_path = os.path.join(RunFolderName, f"{base_name}_screen_ChemistryFiltersResults.csv")
         nominees_filtered.to_csv(nominees_filtered_path, index=False)
 
         
         nominees_filtered = nominees_filtered[nominees_filtered["pass_all_filters"] == True]       
-        screen_result_path = os.path.join("Results", f"{base_name}_screen_AfterChemistryFilters.csv")
+        screen_result_path = os.path.join(RunFolderName, f"{base_name}_screen_AfterChemistryFilters.csv")
         nominees_filtered.to_csv(screen_result_path, index=False)
 
 #-----------------------------------------------------------------------------
@@ -329,7 +329,7 @@ def calculate_screening_probabilities(config, RunFolderName, load_data, get_mode
             ScreenResults["union_conformal_set"] = [[int(x) for x in union_set]] * len(X_screen)
         
         base_name = os.path.splitext(os.path.basename(screen_path))[0]
-        output_path = os.path.join("Results", f"{base_name}_screen.csv")
+        output_path = os.path.join(RunFolderName, f"{base_name}_screen.csv")
         ScreenResults.to_csv(output_path, index=False)
     return
 #------------------------------------------------------------------------------

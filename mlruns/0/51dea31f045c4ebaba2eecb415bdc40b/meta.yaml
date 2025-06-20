@@ -1,0 +1,14 @@
+artifact_uri: file:///D:/0000-UHN/ml/ml-pipeline-aircheck/mlruns/0/51dea31f045c4ebaba2eecb415bdc40b/artifacts
+end_time: 1750453471362
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 51dea31f045c4ebaba2eecb415bdc40b
+run_name: indecisive-bass-826
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1750453470044
+status: 4
+tags: []
+user_id: shagh

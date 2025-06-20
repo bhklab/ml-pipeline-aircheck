@@ -1,0 +1,14 @@
+artifact_uri: file:///D:/0000-UHN/ml/ml-pipeline-aircheck/mlruns/0/62f960392eaf446a9ddb06afd5ea6c78/artifacts
+end_time: 1750453807164
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 62f960392eaf446a9ddb06afd5ea6c78
+run_name: sedate-bee-385
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1750453795375
+status: 3
+tags: []
+user_id: shagh

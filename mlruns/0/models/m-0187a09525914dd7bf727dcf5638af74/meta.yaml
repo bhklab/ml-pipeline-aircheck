@@ -1,0 +1,11 @@
+artifact_location: file:///D:/0000-UHN/ml/ml-pipeline-aircheck/mlruns/0/models/m-0187a09525914dd7bf727dcf5638af74/artifacts
+creation_timestamp: 1750453736243
+experiment_id: '0'
+last_updated_timestamp: 1750453736243
+lifecycle_stage: active
+model_id: m-0187a09525914dd7bf727dcf5638af74
+model_type: null
+name: secretive-croc-513
+source_run_id: 4d4d674de8a543bba7aec0da956126df
+status: 1
+status_message: null

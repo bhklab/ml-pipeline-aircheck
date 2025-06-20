@@ -11,7 +11,7 @@ def read_config(config_name):
         config = yaml.safe_load(file)'''
         
 
-    RunFolderName = os.path.join("Results")
+    RunFolderName = os.path.join(config['run_name'])
     os.makedirs(RunFolderName, exist_ok=True)
 
 
@@ -56,6 +56,7 @@ def validate_config(config_path):
     #-------------------------------
     # Default values for missing keys
     default_values = {
+        'run_name': 'Results',
         'protein_name': 'protein_name',
         'Train': 'N',
         'Test': 'N',
@@ -86,6 +87,7 @@ def validate_config(config_path):
         'chemistry_filters': 'Y'
     }
  
+    
     # Set default values and warn user
     for key, default_value in default_values.items():
         if key not in config:

@@ -1,0 +1,10 @@
+artifact_location: file:///D:/0000-UHN/ml/ml-pipeline-aircheck/mlruns/0/models/m-776a20a59226423f98ff5f3dcd55c67a/artifacts
+creation_timestamp: 1750453832128
+experiment_id: '0'
+last_updated_timestamp: 1750453841865
+model_id: m-776a20a59226423f98ff5f3dcd55c67a
+model_type: null
+name: illustrious-yak-292
+source_run_id: f2836b6e2bc34ecd98fab254ffe50353
+status: 2
+status_message: null

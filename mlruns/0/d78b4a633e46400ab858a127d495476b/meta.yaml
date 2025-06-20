@@ -1,0 +1,14 @@
+artifact_uri: file:///D:/0000-UHN/ml/ml-pipeline-aircheck/mlruns/0/d78b4a633e46400ab858a127d495476b/artifacts
+end_time: 1750453588561
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: d78b4a633e46400ab858a127d495476b
+run_name: exultant-midge-381
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1750453577246
+status: 3
+tags: []
+user_id: shagh

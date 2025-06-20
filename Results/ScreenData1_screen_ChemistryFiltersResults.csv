@@ -1,6 +1,0 @@
-SMILES,model_0_yprob,model_0_conformal_set,model_1_yprob,model_1_conformal_set,average_yprob,union_conformal_set,lipinski,ghose,veber,pass_all_filters
-CCO,0.7854716169756595,[1 1],0.7598720185046746,[1 1],0.772671817740167,"[0, 1]",True,False,True,False
-CC(=O)O,0.8172401028281981,[1 1],0.7560093323752326,[1 1],0.7866247176017154,"[0, 1]",True,False,True,False
-C1=CC=CC=C1,0.8182050812212706,[1 1],0.8656218806405567,[1 1],0.8419134809309137,"[0, 1]",True,False,True,False
-CCN(CC)CC,0.7605349421293628,[1 1],0.751591885957505,[1 1],0.7560634140434339,"[0, 1]",True,False,True,False
-CN(C)C=O,0.7672849981678475,[1 1],0.7543570592120485,[1 1],0.7608210286899479,"[0, 1]",True,False,True,False

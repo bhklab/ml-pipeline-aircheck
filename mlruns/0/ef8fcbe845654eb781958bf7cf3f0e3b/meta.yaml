@@ -1,0 +1,14 @@
+artifact_uri: file:///D:/0000-UHN/ml/ml-pipeline-aircheck/mlruns/0/ef8fcbe845654eb781958bf7cf3f0e3b/artifacts
+end_time: 1750453613079
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: ef8fcbe845654eb781958bf7cf3f0e3b
+run_name: defiant-swan-839
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1750453600528
+status: 3
+tags: []
+user_id: shagh

@@ -1,0 +1,14 @@
+artifact_uri: file:///D:/0000-UHN/ml/ml-pipeline-aircheck/mlruns/0/abf651db6f544097b31ea772c370b34b/artifacts
+end_time: 1750453795356
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: abf651db6f544097b31ea772c370b34b
+run_name: classy-duck-525
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1750453783826
+status: 3
+tags: []
+user_id: shagh

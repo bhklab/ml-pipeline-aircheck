@@ -1,0 +1,10 @@
+artifact_location: file:///D:/0000-UHN/ml/ml-pipeline-aircheck/mlruns/0/models/m-2e05e26524974d6c88ba4e9aac1c765b/artifacts
+creation_timestamp: 1750453808622
+experiment_id: '0'
+last_updated_timestamp: 1750453818342
+model_id: m-2e05e26524974d6c88ba4e9aac1c765b
+model_type: null
+name: thoughtful-vole-431
+source_run_id: be3d3d0b1a7747d1a6229fba8ba8522f
+status: 2
+status_message: null

@@ -1,2 +1,0 @@
-Results\Company1_rf_ECFP6
-Results\Company2_rf_ECFP6

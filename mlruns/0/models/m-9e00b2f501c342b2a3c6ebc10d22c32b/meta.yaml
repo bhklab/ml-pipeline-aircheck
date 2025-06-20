@@ -1,0 +1,10 @@
+artifact_location: file:///D:/0000-UHN/ml/ml-pipeline-aircheck/mlruns/0/models/m-9e00b2f501c342b2a3c6ebc10d22c32b/artifacts
+creation_timestamp: 1750453785288
+experiment_id: '0'
+last_updated_timestamp: 1750453795313
+model_id: m-9e00b2f501c342b2a3c6ebc10d22c32b
+model_type: null
+name: classy-moose-747
+source_run_id: abf651db6f544097b31ea772c370b34b
+status: 2
+status_message: null

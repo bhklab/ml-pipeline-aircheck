@@ -1,0 +1,2 @@
+run_test_June\Company1_rf_ECFP6
+run_test_June\Company2_rf_ECFP6

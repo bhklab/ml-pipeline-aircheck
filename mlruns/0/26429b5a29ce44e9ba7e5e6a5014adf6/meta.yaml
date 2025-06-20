@@ -1,0 +1,14 @@
+artifact_uri: file:///D:/0000-UHN/ml/ml-pipeline-aircheck/mlruns/0/26429b5a29ce44e9ba7e5e6a5014adf6/artifacts
+end_time: 1750453783805
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 26429b5a29ce44e9ba7e5e6a5014adf6
+run_name: hilarious-lamb-138
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1750453772473
+status: 3
+tags: []
+user_id: shagh

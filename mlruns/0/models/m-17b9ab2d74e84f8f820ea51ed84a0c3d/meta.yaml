@@ -1,0 +1,10 @@
+artifact_location: file:///D:/0000-UHN/ml/ml-pipeline-aircheck/mlruns/0/models/m-17b9ab2d74e84f8f820ea51ed84a0c3d/artifacts
+creation_timestamp: 1750453578527
+experiment_id: '0'
+last_updated_timestamp: 1750453588521
+model_id: m-17b9ab2d74e84f8f820ea51ed84a0c3d
+model_type: null
+name: popular-perch-755
+source_run_id: d78b4a633e46400ab858a127d495476b
+status: 2
+status_message: null
