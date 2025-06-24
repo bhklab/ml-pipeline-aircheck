@@ -43,8 +43,6 @@ pip install -r requirements.txt
 
 ### Clone or update the repo
 ```bash
-# Navigate to your workspace
-cd ~
 
 # Clone if not already cloned
 git clone https://github.com/bhklab/ml-pipeline-aircheck
@@ -52,6 +50,9 @@ git clone https://github.com/bhklab/ml-pipeline-aircheck
 # Or update if it's already cloned
 cd ml-pipeline-aircheck
 git pull
+
+# Navigate to your workspace
+cd ml-pipeline-aircheck
 ```
 
 ### Remove previous run folder (optional)
