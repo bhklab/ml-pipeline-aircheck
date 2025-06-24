@@ -19,7 +19,7 @@ def log_results_to_mlflow(RunFolderName):
     
     param_cols = ['nrows_train', 'nrows_test', 'Nfold', 'confromal_test_size', 'confromal_confidence_level', 'balance_ratios',
                   'run_name', 'protein_name', 'TrainFileName', 'TestFile', 'feature_fusion_method',
-                  , 'ModelType', 'UsedHyperParameters', 'conformal_prediction', 'ColumnName', 'Date', 'Time']
+                  'ModelType', 'UsedHyperParameters', 'conformal_prediction', 'ColumnName', 'Date', 'Time']
     
     metric_cols = ['CV_Accuracy', 'CV_Precision', 'CV_Recall', 'CV_F1 Score', 'CV_AUC-ROC', 'CV_AUC-PR', 'CV_MCC', 'CV_Cohen Kappa',
                    'CV_balanced_accuracy', 'CV_PlatePPV', 'CV_DivPlatePPV', 'Test_Accuracy', 'Test_Precision',

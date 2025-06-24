@@ -2,3 +2,7 @@
 Temporary.py
 confromal.py
 __pycache__/
+Data/
+mlruns/
+run_test/
+

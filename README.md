@@ -17,7 +17,8 @@ aircheck_ml_pipeline/
 ├── fusion_utils.py                       # Functions for model selection, fusion, and radar plot generation
 ├── config_utils.py                       # Utilities for reading, validating, and writing the configuration file
 ├── screening_utils.py                    # Functions for screening: fingerprinting, chemistry filtering, and clustering
-│
+├── log_results.py                        # Script to log pipeline results to MLflow
+├── mlruns/                               # MLflow tracking directory (auto-generated)
 ├── Results/                              # Directory where results, models, and radar plots are saved
 │   ├── BestModels/                       # Best models selected for fusion
 │   ├── BestModels.txt                    # List of best models' paths
@@ -35,6 +36,7 @@ aircheck_ml_pipeline/
 * Detailed model evaluation with radar plots
 * Virtual screening including fingerprint extraction, chemical filtering, and clustering
 * Configurable through a single YAML configuration file
+* MLflow logging for model parameters, metrics, artifacts, and trained models
 
 ## How to Use
 
@@ -60,6 +62,12 @@ python aircheck_pipeline.py
 <p align="center">
 <img src="Results/RadarChart_TopModels.png" alt="Model Metrics" width="600"/>
 </p>
+
+### 4. View MLflow Logs (Optional)
+
+To browse logged experiments via MLflow UI: mlflow ui
+Then open http://localhost:5000 in your browser.
+
 
 ## Configuration Options
 
