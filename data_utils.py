@@ -5,21 +5,6 @@ import shutil
 
 
 
-def read_parquet_file(file_path, columns=None, nrows=None):
-    df = pd.read_parquet(file_path, columns=columns, engine='pyarrow')
-    if nrows is not None:
-        df = df.head(nrows)
-    return df
-
-def process_column_to_array(df, column_name):
-    if isinstance(df[column_name].iloc[0], str):
-        # Column is string, needs conversion
-        return np.stack(df[column_name].apply(lambda x: np.fromstring(x, sep=',', dtype=np.float32)))
-    else:
-        # Column is already array-like
-        return np.stack(df[column_name])
-
-
 def convert_columns_to_array(df, column_names):
     for col in column_names:
         if isinstance(df[col].iloc[0], str):
@@ -75,6 +60,10 @@ def load_data(path, column_names, label_column, nrows):
     # Load data with the corrected nrows
     X = read_parquet_file(path, columns=column_names, nrows=nrows)
     Y = read_parquet_file(path, columns=label_column, nrows=nrows)
+    
+    # Convert all relevant columns
+    for col in column_names:
+        X[col] = process_column_to_array(X, col)
     
     return X, Y
 

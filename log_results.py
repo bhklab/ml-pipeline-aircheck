@@ -46,13 +46,6 @@ def log_results_to_mlflow(RunFolderName):
             for col in metric_cols:
                 mlflow.log_metric(col, row[col])
 
-            # Log artifacts (e.g., .csv, .png)
-           '''for col in artifact_cols:
-                artifact_path = row[col]
-                if os.path.exists(artifact_path):
-                    mlflow.log_artifact(artifact_path)
-                else:
-                    print(f"Warning: artifact file {artifact_path} does not exist.")'''
  
             # Log models
             for col in model_cols:
