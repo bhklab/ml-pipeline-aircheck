@@ -47,10 +47,10 @@ pip install -r requirements.txt
 cd ~
 
 # Clone if not already cloned
-git clone https://github.com/your-username/your-repo.git
+git clone https://github.com/bhklab/ml-pipeline-aircheck
 
 # Or update if it's already cloned
-cd your-repo
+cd ml-pipeline-aircheck
 git pull
 ```
 
