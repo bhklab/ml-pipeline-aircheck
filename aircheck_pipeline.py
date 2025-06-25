@@ -12,6 +12,7 @@ from fusion_utils import select_best_models
 from fusion_utils import fusion_pipeline
 from screening_utils import screening_pipeline
 from log_results import log_results_to_mlflow
+import time
 #==========================================================================
 
 
@@ -37,7 +38,7 @@ def run_pipeline(config_name="config.yaml"):
                bayesian_hyperparameter_search, write_results_csv)  
 
     # Execute the testing pipeline
-    print("Step 4: Train pipeline")
+    print("Step 4: Test pipeline")
     test_pipeline(config, RunFolderName, load_data, fuse_columns, evaluate_model, get_model, train_model)
 
     # Execute model selection to find the best models
@@ -59,4 +60,8 @@ def run_pipeline(config_name="config.yaml"):
 
 # Example usage: Execute the pipeline if the script is run directly
 if __name__ == "__main__":
+    start_time = time.time()
     run_pipeline()
+    end_time = time.time()
+    elapsed_minutes = (end_time - start_time) / 60
+    print(f"\nTotal runtime: {elapsed_minutes:.2f} minutes")
