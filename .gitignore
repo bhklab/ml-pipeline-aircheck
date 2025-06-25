@@ -1,6 +1,7 @@
 .vs/
 Temporary.py
 confromal.py
+Downsize.py
 __pycache__/
 Data/
 mlruns/

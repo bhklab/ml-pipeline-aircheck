@@ -63,7 +63,10 @@ def load_data(path, column_names, label_column, nrows):
     
     # Convert all relevant columns
     for col in column_names:
-        X[col] = process_column_to_array(X, col)
+        if isinstance(X[col].iloc[0], str):
+            X[col] = X[col].apply(lambda x: np.fromstring(x, sep=',', dtype=np.float32))
+        else:
+            X[col] = X[col].apply(np.array)
     
     return X, Y
 
