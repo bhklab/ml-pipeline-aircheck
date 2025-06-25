@@ -14,6 +14,8 @@ import mlflow
 import pandas as pd
 import os
 import joblib
+import warnings
+warnings.filterwarnings("ignore", message="Model logged without a signature and input example*", category=UserWarning)
 
 def log_results_to_mlflow(RunFolderName):
     

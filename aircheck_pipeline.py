@@ -23,26 +23,33 @@ Loads configuration, initiates training, testing, model selection, and fusion.
 def run_pipeline(config_name="config.yaml"):
     
     # Load and validate configuration file
+    print("Step 1: Reading config file")
     config, RunFolderName = read_config(config_name)  
 
     # Prepare training paths based on balance settings
+    print("Step 2: Data preperation")
     train_paths = create_balanced_datasets(config)
 
     # Execute the training pipeline
+    print("Step 3: Train pipeline")
     train_pipeline(config, RunFolderName, load_data, fuse_columns, get_model, train_model,
                cross_validate_and_save_models, train_and_save_final_model,
                bayesian_hyperparameter_search, write_results_csv)  
 
     # Execute the testing pipeline
+    print("Step 4: Train pipeline")
     test_pipeline(config, RunFolderName, load_data, fuse_columns, evaluate_model, get_model, train_model)
 
     # Execute model selection to find the best models
+    print("Step 5: Model selection")
     select_best_models(config, RunFolderName)
 
     # Execute the fusion pipeline to combine the top models
+    print("Step 6: Model fusion")
     fusion_pipeline(config, RunFolderName, load_data, fuse_columns, evaluate_model)
     
     # Virtual Screening: Calculating screening data probability, applying chemistry filters, and clustering results
+    print("Step 7: Virtual screening")
     screening_pipeline(config, RunFolderName, load_data, fuse_columns, evaluate_model, get_model, train_model)
     
     # Loggingparameters, metric, artifacts and models using mlflow

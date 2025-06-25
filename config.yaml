@@ -53,15 +53,14 @@ chemistry_filters: 'y' #  (N:for no, Y: for yes)
 # ada: AdaBoost
 # bag: Bagging Classifier
 # mlp: Multi-layer Perceptron
-# desired_models: [rf, lr, ridge, sgd, perceptron, svc, nb, dt, knn, gb, ada, bag, mlp
+# desired_models: [rf, lr, sgd, svc, nb, dt, knn, gb, ada, bag, mlp]
 desired_models: [rf] 
 
 # Models' Hyperparameters tuning
 hyperparameters_tuning: 'N' #  (N:for no, Y: for yes)
 
 # Specifying hyperparameters
-hyperparameters: {rf:{n_estimators: 150, max_depth: 10},
-                  nb:{n_estimators: 150, max_depth: 10}} # hyperparameters: {}  # use default
+hyperparameters: {rf:{n_estimators: 150, max_depth: 10}} # hyperparameters: {}  # use default
 
 # Cross validation
 Nfold: 2 # Number of folds for the Crossfold validatrion method

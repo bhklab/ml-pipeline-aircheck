@@ -4,6 +4,9 @@ import numpy as np
 from rdkit import Chem
 from rdkit.Chem import Descriptors
 from .fingerprints import HitGenMACCS, HitGenECFP4, HitGenECFP6, HitGenFCFP4, HitGenFCFP6, HitGenRDK, HitGenAvalon, HitGenTopTor, HitGenAtomPair
+from rdkit import RDLogger
+RDLogger.DisableLog('rdApp.warning')  # Only disables warnings, not errors
+
 
 def compute_molecular_properties(smiles):
     mol = Chem.MolFromSmiles(smiles)
@@ -40,7 +43,7 @@ def process_file(input_file, output_file, fingerprints,  smiles_column):
     # Generate fingerprint columns
     fingerprint_data = []
     for i, smiles in enumerate(df[smiles_column], start=1):
-        print(f"Processing molecule {i}")
+        #print(f"Processing molecule {i}")
         fps = generate_fingerprints(smiles, fingerprints)
         fingerprint_data.append(fps)
 

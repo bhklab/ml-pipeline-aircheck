@@ -13,6 +13,8 @@ import os
 import numpy as np
 from skopt import BayesSearchCV
 from eval_utils import evaluate_model
+import warnings
+warnings.filterwarnings("ignore")
 #==============================================================================
 #==============================================================================
 def get_model(model_name, best_params={}):
@@ -20,14 +22,12 @@ def get_model(model_name, best_params={}):
         return RandomForestClassifier(**best_params) if best_params else RandomForestClassifier()
     elif model_name == 'lr':
         return LogisticRegression(**best_params) if best_params else LogisticRegression()
-    elif model_name == 'ridge':
-        return RidgeClassifier(**best_params) if best_params else RidgeClassifier()
     elif model_name == 'sgd':
-        return SGDClassifier(**best_params) if best_params else SGDClassifier()
-    elif model_name == 'perceptron':
-        return Perceptron(**best_params) if best_params else Perceptron()
+        best_params['loss'] = 'log_loss'
+        return SGDClassifier(**best_params) if best_params else SGDClassifier(loss = 'log_loss')
     elif model_name == 'svc':
-        return SVC(**best_params) if best_params else SVC()
+        best_params['probability'] = True
+        return SVC(**best_params) if best_params else SVC(probability=True)
     elif model_name == 'nb':
         return GaussianNB(**best_params) if best_params else GaussianNB()
     elif model_name == 'dt':
