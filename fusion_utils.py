@@ -14,6 +14,8 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 #==============================================================================
 # Function to plot radar chart for model metrics
 def plot_model_metrics_radar(df, metric_columns, save_path=""):
+    
+
     """
     Plots a radar chart for model metrics.
 
@@ -54,7 +56,6 @@ def plot_model_metrics_radar(df, metric_columns, save_path=""):
 #-----------------------------------------------------------------------------
 
 def select_best_models(config, RunFolderName):
-    
     trainfile_for_modelselection = config['trainfile_for_modelselection']
     evaluationfile_for_modelselection = config['evaluationfile_for_modelselection']
     evaluation_column = config['evaluation_column']
@@ -140,7 +141,8 @@ def select_best_models(config, RunFolderName):
 
     print(f"Top {num_top_models} distinct model paths written to {output_txt_path}")
     
-    if evaluation_column is not None and all(col in df.columns for col in evaluation_column):
+    evaluation_column_radarplot = ['CV_F1Score', 'CV_Precision', 'CV_Recall', 'CV_Accuracy', 'CV_PlatePPV', 'CV_DivPlatePPV']
+    if evaluation_column_radarplot is not None and all(col in df.columns for col in evaluation_column_radarplot ):
         # Calculate mean values for the specified evaluation columns
         radar_data = best_models[evaluation_column].mean().to_dict()
         

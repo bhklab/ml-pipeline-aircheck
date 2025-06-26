@@ -60,7 +60,7 @@ python aircheck_pipeline.py
   * Virtual screening outputs in CSV format.
 
 <p align="center">
-<img src="run_test_June/RadarChart_TopModels.png" alt="Model Metrics" width="600"/>
+<img src="RadarChart_TopModels.png" alt="Model Metrics" width="600"/>
 </p>
 
 ### 4. View MLflow Logs (Optional)
