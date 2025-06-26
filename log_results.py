@@ -19,17 +19,23 @@ import logging
 # Suppress only MLflow model logger warnings
 logging.getLogger("mlflow.models.model").setLevel(logging.ERROR)
 
-
+'''metric_cols = ['CV_Accuracy', 'CV_Precision', 'CV_Recall', 'CV_F1Score', 'CV_AUC-ROC', 'CV_AUC-PR', 'CV_MCC', 'CV_Cohen Kappa',
+                'CV_balanced_accuracy', 'CV_PlatePPV', 'CV_DivPlatePPV', 'Test_Accuracy', 'Test_Precision',
+                'Test_Recall', 'Test_F1Score', 'Test_AUC-ROC', 'Test_AUC-PR', 'Test_MCC', 'Test_Cohen Kappa',
+                'Test_balanced_accuracy','Test_PlatePPV', 'Test_DivPlatePPV', 'Test_Hits@200', 'Test_Hits@500', 'Test_Precision@200',
+                'Test_Precision@500', 'CV_Hits@200', 'CV_Hits@500', 'CV_Precision@200', 'CV_Precision@500']'''
 def log_results_to_mlflow(RunFolderName):
     
     param_cols = ['nrows_train', 'nrows_test', 'Nfold', 'confromal_test_size', 'confromal_confidence_level', 'balance_ratios',
                   'run_name', 'protein_name', 'TrainFileName', 'TestFile', 'feature_fusion_method',
                   'ModelType', 'UsedHyperParameters', 'conformal_prediction', 'ColumnName', 'Date', 'Time']
-    
-    metric_cols = ['CV_Accuracy', 'CV_Precision', 'CV_Recall', 'CV_F1 Score', 'CV_AUC-ROC', 'CV_AUC-PR', 'CV_MCC', 'CV_Cohen Kappa',
-                   'CV_balanced_accuracy', 'CV_PlatePPV', 'CV_DivPlatePPV', 'Test_Accuracy', 'Test_Precision',
-                   'Test_Recall', 'Test_F1 Score', 'Test_AUC-ROC', 'Test_AUC-PR', 'Test_MCC', 'Test_Cohen Kappa',
-                   'Test_balanced_accuracy','Test_PlatePPV', 'Test_DivPlatePPV']
+
+
+    metric_cols = metric_cols = ['CV_Accuracy', 'CV_Precision', 'CV_Recall', 'CV_F1Score', 'CV_AUC-ROC', 'CV_AUC-PR', 'CV_MCC', 'CV_Cohen Kappa',
+                    'CV_balanced_accuracy', 'CV_PlatePPV', 'CV_DivPlatePPV', 'Test_Accuracy', 'Test_Precision',
+                    'Test_Recall', 'Test_F1Score', 'Test_AUC-ROC', 'Test_AUC-PR', 'Test_MCC', 'Test_Cohen Kappa',
+                    'Test_balanced_accuracy','Test_PlatePPV', 'Test_DivPlatePPV', 'Test_HitsAt200', 'Test_HitsAt500', 'Test_PrecisionAt200',
+                    'Test_PrecisionAt500', 'CV_HitsAt200', 'CV_HitsAt500', 'CV_PrecisionAt200', 'CV_PrecisionAt500']
     
     artifact_cols = ['run_name', 'protein_name', 'TrainFileName', 'TestFile']
                      #, 'feature_fusion_method', 'ModelType', 'conformal_prediction', 'ColumnName', 'Date', 'Time']
@@ -48,9 +54,16 @@ def log_results_to_mlflow(RunFolderName):
                 mlflow.log_param(col, row[col])
 
             # Log metrics
-            for col in metric_cols:
-                mlflow.log_metric(col, row[col])
+            '''for col in metric_cols:
+                mlflow.log_metric(col, row[col])'''
 
+            for col in metric_cols:
+                value = row[col]
+                try:
+                    if pd.notnull(value):
+                        mlflow.log_metric(col, float(value))
+                except Exception as e:
+                    print(f"Could not log metric {col}: {value} ({type(value)}). Error: {e}")
  
             # Log models
             for col in model_cols:

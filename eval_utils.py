@@ -9,8 +9,7 @@ from rdkit.DataStructs  import BulkTanimotoSimilarity
 from tqdm import tqdm 
 import ast
 from sklearn.model_selection import train_test_split
-from mapie.classification import SplitConformalClassifier
-from mapie.metrics.classification import classification_coverage_score
+
 # top 100, 2000 metrics?? Number of hits?
 # Threshold??????
 
@@ -35,7 +34,7 @@ def evaluate_model(model, X_test, y_test):
     metrics = calculate_metrics(X_test,y_test,  y_pred, y_proba)
     return metrics
 #==============================================================================
-def calculate_metrics(X_test,y_test,  y_pred, y_proba):  
+'''def calculate_metrics(X_test,y_test,  y_pred, y_proba):  
     ppv = precision_score(y_test, y_pred)
     p_ppv = plate_ppv(y_test, y_pred, top_n=128) # Why this number!!! edit later !!!!!!!!!!
     clusters = cluster_leader_from_array (X_test)
@@ -54,7 +53,60 @@ def calculate_metrics(X_test,y_test,  y_pred, y_proba):
         "PlatePPV": p_ppv,
         "DivPlatePPV": dp_ppv
     }
+    return metrics'''
+
+#-------------------------------------
+def hits_and_precision_at_k(y_true, y_pred, y_scores, k):
+    
+    k = min(k, len(y_scores))  # Prevent index overflow
+
+    top_k_idx = np.argsort(y_scores)[::-1][:k]
+    top_k_true = np.array(y_true)[top_k_idx]
+    top_k_pred = np.array(y_pred)[top_k_idx]
+    
+    hits = np.sum((top_k_true == 1) & (top_k_pred == 1))
+    predicted_positives = np.sum(top_k_pred == 1)
+
+    precision_at_k = hits / predicted_positives if predicted_positives > 0 else 0.0
+    #print('hits:',hits,precision_at_k)
+    return int(hits), precision_at_k
+#-------------------------------------
+
+def calculate_metrics(X_test, y_test, y_pred, y_proba):  
+    ppv = precision_score(y_test, y_pred, zero_division=0)
+    p_ppv = plate_ppv(y_test, y_pred, top_n=128)
+    clusters = cluster_leader_from_array(X_test)
+    dp_ppv = diverse_plate_ppv(y_test, y_pred, clusters=clusters.tolist())
+
+    y_test_array = np.array(y_test)
+    y_pred_array = np.array(y_pred)
+    y_proba_array = np.array(y_proba)
+
+    hits_100, prec_100 = hits_and_precision_at_k(y_test_array, y_pred_array, y_proba_array, 200)
+    hits_200, prec_200 = hits_and_precision_at_k(y_test_array, y_pred_array, y_proba_array, 500)
+    total_hits = int(np.sum((y_test_array == 1) & (y_pred_array == 1)))
+
+    metrics = {
+        "Accuracy": accuracy_score(y_test_array, y_pred_array),
+        "Precision": ppv,
+        "Recall": recall_score(y_test_array, y_pred_array, zero_division=0),
+        "F1Score": f1_score(y_test_array, y_pred_array, zero_division=0),
+        "AUC-ROC": roc_auc_score(y_test_array, y_proba_array),
+        "AUC-PR": average_precision_score(y_test_array, y_proba_array),
+        "MCC": matthews_corrcoef(y_test_array, y_pred_array),
+        "Cohen Kappa": cohen_kappa_score(y_test_array, y_pred_array),
+        "balanced_accuracy": balanced_accuracy_score(y_test_array, y_pred_array),
+        "PlatePPV": p_ppv,
+        "DivPlatePPV": dp_ppv,
+        "HitsAt200": hits_100,
+        "PrecisionAt200": prec_100,
+        "HitsAt500": hits_200,
+        "PrecisionAt500": prec_200,
+        "TotalHits": total_hits
+    }
+
     return metrics
+
 #==============================================================================
 # PPV (Positive Predictive Value)
 #                  True Positives
@@ -179,7 +231,7 @@ def test_pipeline(config,
             test_metrics = evaluate_model(model, X_test_array, Y_test_array)
             
             
-            if conformal_prediction.lower() == 'y':               
+            if conformal_prediction.lower() == 'y':   
                 [confromal_coverage_score, confromal_confidence_score, y_pred_set] = compute_conformal_prediction(get_model, train_model, load_data,fuse_columns,row,nrows_train,feature_fusion_method, X_test_array, Y_test_array)
                 row["confromal_coverage_score"] = confromal_coverage_score
                 row["confromal_confidence_score"] = confromal_confidence_score
@@ -197,6 +249,9 @@ def test_pipeline(config,
 
 
 def compute_conformal_prediction(get_model, train_model, load_data, fuse_columns, row, nrows_train, feature_fusion_method, X_test_array, Y_test_array):
+    #---
+    from mapie.classification import SplitConformalClassifier
+    from mapie.metrics.classification import classification_coverage_score
     #----
     model_name = row ["ModelType"]
     column_names = row["ColumnName"]
