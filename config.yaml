@@ -11,7 +11,7 @@ Screen: 'Y'  # Running test phase (N:for no, Y: for yes)
 
 # Data:
 
-train_data: [Data/TrainFiles/small_train.parquet]
+train_data: [Data/TrainFiles/crosstalk_train.parquet]
 test_data: [Data/TestFiles/small_test_crosstalk_Q1.parquet]
             
 # desired_columns:  [ECFP4, ECFP6, FCFP4, FCFP6, TOPTOR, MACCS, RDK, AVALON, ATOMPAIR]                

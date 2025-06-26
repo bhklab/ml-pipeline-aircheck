@@ -1,6 +1,6 @@
 # AIRCHECK Pipeline on Vertex AI Workbench
 
-This guide describes how to run the AIRCHECK pipeline using Google Cloud's Vertex AI Workbench, including setting up the instance, preparing a Python 3.11 environment, running the code, and saving results.
+This guide describes how to run the AIRCHECK pipeline using Google Cloud's Vertex AI Workbench, including setting up the instance, preparing environments, running the code, and saving results.
 
 ---
 
@@ -15,83 +15,106 @@ This guide describes how to run the AIRCHECK pipeline using Google Cloud's Verte
 
 ---
 
-## Step 2: Set Up Python 3.11 Conda Environment
+## Step 2: Set Up the Environment
 
-### Check if Conda is installed
-```bash
-conda --version
-```
+### 🟢 If you **don’t need conformal prediction (MAPIE)**:
 
-### Create a new environment with Python 3.11
-```bash
-conda create -y -n py311 python=3.11
-```
+You can use the default Jupyter environment.
 
-### Activate the environment
 ```bash
-conda activate py311
-```
+# Clone the repository
+git clone https://github.com/bhklab/ml-pipeline-aircheck
+cd ml-pipeline-aircheck
 
-### Install required packages
-```bash
+# Install required packages
 pip install -r requirements.txt
+```
+
+---
+
+### 🔵 If you **want to use conformal prediction (MAPIE)**:
+
+You must create and activate a Python 3.11 conda environment.
+
+```bash
+# Check if conda is installed
+conda --version
+
+# Create a Python 3.11 conda environment
+conda create -y -n py311 python=3.11
+
+# Activate the environment
+conda activate py311
+
+# Clone the repository
+git clone https://github.com/bhklab/ml-pipeline-aircheck
+cd ml-pipeline-aircheck
+
+# Install MAPIE-compatible packages
+pip install -r requirements_mapie_conformal.txt
 ```
 
 ---
 
 ## Step 3: Run the Pipeline (from Terminal in JupyterLab)
 
-### Clone or update the repo
-```bash
+### Option A: Simple run (for quick testing)
 
-# Clone if not already cloned
-git clone https://github.com/bhklab/ml-pipeline-aircheck
-
-# Or update if it's already cloned
-cd ml-pipeline-aircheck
-git pull
-
-# Navigate to your workspace
-cd ml-pipeline-aircheck
-```
-
-### Remove previous run folder (optional)
-```bash
-rm -rf run_test
-```
-
-### Run the pipeline
 ```bash
 python aircheck_pipeline.py
 ```
 
 ---
 
-## Step 4: Save Results to Google Cloud Storage (GCS)
+### Option B: Recommended for long runs (won’t crash if terminal disconnects)
 
-### Copy result folder to GCS
 ```bash
-gsutil -m cp -r run_test gs://gs_bucket_name/testresult
+# Run the pipeline in the background and log output
+nohup python aircheck_pipeline.py > output.log 2>&1 &
 ```
 
-### Copy MLflow logs to GCS
+#### Monitor the run:
 ```bash
-gsutil -m cp -r mlruns gs://gs_bucket_name/mlruns
+ps aux | grep aircheck_pipeline.py
+```
+
+#### View live output:
+```bash
+tail -f output.log
+```
+
+#### Stop the background process:
+```bash
+kill <process_id>
+```
+
+(Replace `<process_id>` with the actual number from `ps aux`)
+
+---
+
+## Step 4: Save Results to Google Cloud Storage (GCS)
+
+### Copy result folder to GCS:
+```bash
+gsutil -m cp -r run_test gs://<your-bucket-name>/testresult
+```
+
+### Copy MLflow logs to GCS:
+```bash
+gsutil -m cp -r mlruns gs://<your-bucket-name>/mlruns
 ```
 
 ---
 
 ## (Optional) View MLflow Tracking UI
 
-### Launch MLflow server
+### Launch MLflow server:
 ```bash
 mlflow ui --port 8081 --backend-store-uri ./mlruns
 ```
 
-### Open the MLflow UI in browser
-1. In the JupyterLab menu bar, go to  
-   **Vertex AI --> Web preview --> Port 8081**
-2. The UI will open in a new browser tab.
+### Open the MLflow UI in browser:
+1. In JupyterLab, go to **Vertex AI --> Web preview --> Port 8081**
+2. The MLflow UI will open in a new browser tab.
 
 ---
-
