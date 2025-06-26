@@ -42,9 +42,6 @@ chemistry_filters: 'y' #  (N:for no, Y: for yes)
 # Supported models:
 # rf: Random Forest
 # lr: Logistic Regression
-# ridge: Ridge Classifier
-# sgd: Stochastic Gradient Descent Classifier
-# perceptron: Perceptron
 # svc: Support Vector Classifier
 # nb: Gaussian Naive Bayes
 # dt: Decision Tree
@@ -53,8 +50,10 @@ chemistry_filters: 'y' #  (N:for no, Y: for yes)
 # ada: AdaBoost
 # bag: Bagging Classifier
 # mlp: Multi-layer Perceptron
-# desired_models: [rf, lr, sgd, svc, nb, dt, knn, gb, ada, bag, mlp]
-desired_models: [rf]
+# lgbm:
+# catboost:
+# desired_models: [rf, lr, sgd, svc, nb, dt, knn, gb, ada, bag, mlp, lgbm, catboost]
+desired_models: [lgbm, catboost]
 
 # Models' Hyperparameters tuning
 hyperparameters_tuning: 'N' #  (N:for no, Y: for yes)

@@ -13,6 +13,9 @@ import os
 import numpy as np
 from skopt import BayesSearchCV
 from eval_utils import evaluate_model
+from lightgbm import LGBMClassifier
+from catboost import CatBoostClassifier
+
 import warnings
 warnings.filterwarnings("ignore")
 #==============================================================================
@@ -42,6 +45,10 @@ def get_model(model_name, best_params={}):
         return BaggingClassifier(**best_params) if best_params else BaggingClassifier()
     elif model_name == 'mlp':
         return MLPClassifier(**best_params) if best_params else MLPClassifier()
+    elif model_name == 'lgbm':
+        return LGBMClassifier(**best_params) if best_params else LGBMClassifier()
+    elif model_name == 'catboost':
+        return CatBoostClassifier(silent=True, **best_params) if best_params else CatBoostClassifier(silent=True)
     else:
         raise ValueError(f"Unsupported model: {model_name}")
 #==============================================================================
@@ -284,6 +291,12 @@ def bayesian_hyperparameter_search(model_name, X_train, y_train, cv=5, n_iter=32
             'activation': ['relu', 'tanh'],
             'alpha': (1e-5, 1e-2, 'log-uniform'),
         }
+    elif model_name == 'lgbm':
+        print("Bayesian hyperparameter search is not available for LGBM in this pipeline.")
+        return {}
+    elif model_name == 'catboost':
+        print("Bayesian hyperparameter search is not available for CatBoost in this pipeline.")
+        return {}
     else:
         raise ValueError(f"Unsupported model for tuning: {model_name}")
     

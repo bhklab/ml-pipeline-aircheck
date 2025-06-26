@@ -163,8 +163,8 @@ def validate_config(config_path):
         config['balance_ratios'] = [1, 2]
 
     # Validate Model Names (Required)
-    supported_models = ['rf', 'lr', 'ridge', 'sgd', 'perceptron', 'svc', 'nb', 
-                        'dt', 'knn', 'gb', 'ada', 'bag', 'mlp']
+    supported_models = ['rf', 'lr', 'svc', 'nb', 
+                        'dt', 'knn', 'gb', 'ada', 'bag', 'mlp', 'lgbm', 'catboost']
     
     if not isinstance(config.get('desired_models'), list):
         errors.append("desired_models must be a list.")
