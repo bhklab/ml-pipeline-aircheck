@@ -144,7 +144,7 @@ def select_best_models(config, RunFolderName):
     evaluation_column_radarplot = ['CV_F1Score', 'CV_Precision', 'CV_Recall', 'CV_Accuracy', 'CV_PlatePPV', 'CV_DivPlatePPV']
     if evaluation_column_radarplot is not None and all(col in df.columns for col in evaluation_column_radarplot ):
         # Calculate mean values for the specified evaluation columns
-        radar_data = best_models[evaluation_column].mean().to_dict()
+        radar_data = best_models[evaluation_column_radarplot].mean().to_dict()
         
         # Remove "Test_" prefix from the metric names for the radar plot
         radar_data_clean = {col.replace("Test_", ""): value for col, value in radar_data.items()}
