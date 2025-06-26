@@ -7,4 +7,6 @@ Data/
 mlruns/
 run_test/
 run_test - Copy/
+catboost_info/
+plots/
 

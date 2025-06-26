@@ -13,6 +13,7 @@ from fusion_utils import fusion_pipeline
 from screening_utils import screening_pipeline
 from log_results import log_results_to_mlflow
 import time
+from plot_results import plot_function
 #==========================================================================
 
 
@@ -53,8 +54,12 @@ def run_pipeline(config_name="config.yaml"):
     print("Step 7: Virtual screening")
     screening_pipeline(config, RunFolderName, load_data, fuse_columns, evaluate_model, get_model, train_model)
     
+    print("Step 8: Logging the results using mlflow")
     # Loggingparameters, metric, artifacts and models using mlflow
     log_results_to_mlflow (RunFolderName)
+    
+    print("Step 9: Loplotting some results")
+    plot_function(RunFolderName)
 #=========================================================================='''
 
 
