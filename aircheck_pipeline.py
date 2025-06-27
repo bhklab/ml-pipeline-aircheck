@@ -36,7 +36,7 @@ def run_pipeline(config_name="config.yaml"):
     print("Step 3: Train pipeline")
     train_pipeline(config, RunFolderName, load_data, fuse_columns, get_model, train_model,
                cross_validate_and_save_models, train_and_save_final_model,
-               bayesian_hyperparameter_search, write_results_csv)  
+               bayesian_hyperparameter_search, write_results_csv)
 
     # Execute the testing pipeline
     print("Step 4: Test pipeline")

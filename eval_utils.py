@@ -68,15 +68,18 @@ def hits_and_precision_at_k(y_true, y_pred, y_scores, k):
     predicted_positives = np.sum(top_k_pred == 1)
 
     precision_at_k = hits / predicted_positives if predicted_positives > 0 else 0.0
-    #print('hits:',hits,precision_at_k)
+    print('hits:',hits,precision_at_k)
     return int(hits), precision_at_k
 #-------------------------------------
 
 def calculate_metrics(X_test, y_test, y_pred, y_proba):  
     ppv = precision_score(y_test, y_pred, zero_division=0)
     p_ppv = plate_ppv(y_test, y_pred, top_n=128)
-    clusters = cluster_leader_from_array(X_test)
-    dp_ppv = diverse_plate_ppv(y_test, y_pred, clusters=clusters.tolist())
+    
+    # Commented this metric as it is so slow for big datasets!!
+    # clusters = cluster_leader_from_array(X_test)
+    # dp_ppv = diverse_plate_ppv(y_test, y_pred, clusters=clusters.tolist())
+    dp_ppv = -1
 
     y_test_array = np.array(y_test)
     y_pred_array = np.array(y_pred)
@@ -200,19 +203,26 @@ def test_pipeline(config,
     updated_rows = []
 
     for test_path in test_paths:
-        # Load test data
-        X_test, Y_test = load_data(test_path, column_names, label_column_test, nrows_test)
-        Y_test_array = np.stack(Y_test.iloc[:, 0])
+        if config['feature_fusion_method']!="None":
+            # Load test data
+            X_test, Y_test = load_data(test_path, column_names, label_column_test, nrows_test)
+            Y_test_array = np.stack(Y_test.iloc[:, 0])
+    
+            # === Feature Fusion  ===
+            X_test, fused_column_name = fuse_columns(X_test, column_names, feature_fusion_method)
 
-        # === Feature Fusion  ===
-        X_test, fused_column_name = fuse_columns(X_test, column_names, feature_fusion_method)
-
-        for _, row in df.iterrows():
+        for rowcount, row in df.iterrows():
+            # print("testing models, row:", rowcount)
             model_path = row["ModelPath"]
             if os.path.isdir(model_path):
                 model_path = os.path.join(model_path, "model.pkl")
 
             column_name = row["ColumnName"]
+            
+            if config['feature_fusion_method']=="None":
+                # Load test data
+                X_test, Y_test = load_data(test_path, [column_name], label_column_test, nrows_test)
+                Y_test_array = np.stack(Y_test.iloc[:, 0])
 
             try:
                 X_test_array = np.stack(X_test[column_name])

@@ -12,14 +12,16 @@ Screen: 'Y'  # Running test phase (N:for no, Y: for yes)
 # Data:
 
 train_data: [Data/TrainFiles/small_train.parquet]
-test_data: [Data/TestFiles/small_test_crosstalk_Q1.parquet]
+test_data: [Data/TestFiles/2_small_test_crosstalk_Q1.parquet]
             
 # desired_columns:  [ECFP4, ECFP6, FCFP4, FCFP6, TOPTOR, MACCS, RDK, AVALON, ATOMPAIR]                
-desired_columns: [ECFP4,TOPTOR] # Correct format: [ECFP4], and [ECFP4, ECFP6, ...] if multuple columns
+desired_columns: [ECFP4] # Correct format: [ECFP4], and [ECFP4, ECFP6, ...] if multuple columns
 label_column_train: [DELLabel]
 label_column_test: [Label]
 nrows_train: 'None' # integer or 'None' 
 nrows_test: 'None'
+
+# Note: selecting feature fusion makes the code so slow. Avoid it for big datasets!!
 feature_fusion_method: 'None' # options: None, All, Pairwise
 
 # create_balanced_datasets
@@ -53,7 +55,7 @@ chemistry_filters: 'y' #  (N:for no, Y: for yes)
 # lgbm:
 # catboost:
 # desired_models: [rf, lr, sgd, svc, nb, dt, knn, gb, ada, bag, mlp, lgbm, catboost]
-desired_models: [lr, lgbm]
+desired_models: [lr]
 
 # Models' Hyperparameters tuning
 hyperparameters_tuning: 'N' #  (N:for no, Y: for yes)
@@ -79,15 +81,15 @@ confromal_confidence_level: 0.95
 #==========================================================================
 trainfile_for_modelselection: [] # If empty, the top model by evaluation columns and result on the evaluation set is selected. Example: trainfile_for_modelselection: WDR91_SGC.parquet
 evaluationfile_for_modelselection: [] # If empty, the top model by evaluation columns is selected. Exmple: evaluationfile_for_modelselection: evaluation.parquet
-evaluation_column: [Test_HitsAt200, Test_HitsAt500, Test_PrecisionAt200, Test_PrecisionAt500, Test_TotalHits, Test_F1 Score, Test_Precision, Test_Recall, Test_Accuracy, Test_PlatePPV, Test_DivPlatePPV]
-crossvalidation_column: [CV_HitsAt200, CV_HitsAt500, CV_PrecisionAt200, CV_PrecisionAt500, CV_TotalHits, CV_F1Score, CV_Precision, CV_Recall, CV_Accuracy, CV_PlatePPV, CV_DivPlatePPV]
+evaluation_column: [Test_HitsAt200, Test_HitsAt500, Test_PrecisionAt200, Test_PrecisionAt500, Test_TotalHits, Test_F1 Score, Test_Precision, Test_Recall, Test_Accuracy, Test_PlatePPV]
+crossvalidation_column: [CV_HitsAt200, CV_HitsAt500, CV_PrecisionAt200, CV_PrecisionAt500, CV_TotalHits, CV_F1Score, CV_Precision, CV_Recall, CV_Accuracy, CV_PlatePPV]
 #==========================================================================
 
 
 
 # Model Fusion
 #==========================================================================
-Fusion: 'y' # Running test phase (N:for no, Y: for yes)
+Fusion: 'y' # Running model fusion (N:for no, Y: for yes)
 num_top_models: 2
 #==========================================================================
 

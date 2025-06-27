@@ -86,16 +86,25 @@ def train_pipeline(config,
     for train_path in train_paths:
         # Extract the filename without extension for naming
         train_filename = os.path.basename(train_path).split('.')[0]
-
-        # === Load Training Data ===
-        X_train, Y_train = load_data(train_path, column_names, label_column_train, nrows_train)
-        Y_train_array = np.stack(Y_train.iloc[:, 0])
-
-        # === Feature Fusion (optional) ===
-        X_train, fused_column_name = fuse_columns(X_train, column_names , feature_fusion_method)
+        
+        total_columns = column_names
+        if config['feature_fusion_method'] != "None":
+            # === Load Training Data ===
+            X_train, Y_train = load_data(train_path, column_names, label_column_train, nrows_train)
+            Y_train_array = np.stack(Y_train.iloc[:, 0])
+    
+            # === Feature Fusion (optional) ===
+            X_train, fused_column_name = fuse_columns(X_train, column_names , feature_fusion_method)
+            total_columns = fused_column_name
 
         for model_name_i in model_names:
-            for column_names_j in fused_column_name:
+            for column_names_j in total_columns:
+                if config['feature_fusion_method'] == "None":
+                    # === Load Training Data ===
+                    X_train, Y_train = load_data(train_path, [column_names_j], label_column_train, nrows_train)
+                    Y_train_array = np.stack(Y_train.iloc[:, 0])
+
+                
                 X_train_array = np.stack(X_train[column_names_j])
                 
                 # Model subfolder includes train filename
