@@ -58,7 +58,7 @@ def run_pipeline(config_name="config.yaml"):
     # Loggingparameters, metric, artifacts and models using mlflow
     log_results_to_mlflow (RunFolderName)
     
-    print("Step 9: Loplotting some results")
+    print("Step 9: Plotting some results")
     plot_function(RunFolderName)
 #=========================================================================='''
 
