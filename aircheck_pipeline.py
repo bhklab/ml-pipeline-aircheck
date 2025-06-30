@@ -1,5 +1,6 @@
 #==========================================================================
 # Import necessary modules and utility functions from other scripts
+from pdb import run
 from data_utils import load_data, fuse_columns
 from data_utils import create_balanced_datasets
 from model_utils import get_model, train_model
@@ -14,6 +15,7 @@ from screening_utils import screening_pipeline
 from log_results import log_results_to_mlflow
 import time
 from plot_results import plot_function
+import datetime
 #==========================================================================
 
 
@@ -22,6 +24,11 @@ from plot_results import plot_function
 Main function to execute the AIRCHECK ML pipeline.
 Loads configuration, initiates training, testing, model selection, and fusion.
 """
+
+timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+
+
+
 def run_pipeline(config_name="config.yaml"):
     
     # Load and validate configuration file
@@ -56,10 +63,11 @@ def run_pipeline(config_name="config.yaml"):
     
     print("Step 8: Logging the results using mlflow")
     # Loggingparameters, metric, artifacts and models using mlflow
-    log_results_to_mlflow (RunFolderName)
+    run_name = f"{config.get('protein_name')}_{timestamp}"
+    log_results_to_mlflow (RunFolderName, config.get("experiment_name", "Default_Experiment"), run_name)
     
     print("Step 9: Loplotting some results")
-    plot_function(RunFolderName)
+    # plot_function(RunFolderName)
 #=========================================================================='''
 
 

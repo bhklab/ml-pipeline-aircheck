@@ -10,3 +10,5 @@ rdkit
 pyarrow
 mlflow
 lightgbm
+google-cloud-storage
+dotenv
