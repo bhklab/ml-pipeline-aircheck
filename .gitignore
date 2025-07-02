@@ -8,5 +8,5 @@ run_test/
 run_test - Copy/
 catboost_info/
 plots/
-Data0/
-
+service_account.json
+.env

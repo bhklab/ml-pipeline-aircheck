@@ -6,6 +6,7 @@ import warnings
 #==============================================================================
 def read_config(config_name):
     config = validate_config(config_name)
+    print("Configuration file is valid and complete.----", config)
     
     '''with open(config_name, 'r') as file:
         config = yaml.safe_load(file)'''

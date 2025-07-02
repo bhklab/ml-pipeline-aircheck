@@ -1,3 +1,4 @@
+from json import load
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, AdaBoostClassifier, BaggingClassifier
 from sklearn.linear_model import LogisticRegression, RidgeClassifier, SGDClassifier, Perceptron
 from sklearn.svm import SVC
@@ -90,6 +91,8 @@ def train_pipeline(config,
         total_columns = column_names
         if config['feature_fusion_method'] != "None":
             # === Load Training Data ===
+           
+
             X_train, Y_train = load_data(train_path, column_names, label_column_train, nrows_train)
             Y_train_array = np.stack(Y_train.iloc[:, 0])
     

@@ -1,5 +1,6 @@
 
 run_name: "run_test"
+experiment_name: "WDR91_Experiment" # Experiment Name
 
 #==========================================================================
 protein_name: "WDR91" # Protein Name
@@ -61,7 +62,8 @@ desired_models: [lr]
 hyperparameters_tuning: 'N' #  (N:for no, Y: for yes)
 
 # Specifying hyperparameters
-hyperparameters: {rf:{n_estimators: 150, max_depth: 10}} # hyperparameters: {}  # use default
+hyperparameters: 
+# {rf:{n_estimators: 150, max_depth: 10}} # hyperparameters: {}  # use default
 
 # Cross validation
 Nfold: 2 # Number of folds for the Crossfold validatrion method
