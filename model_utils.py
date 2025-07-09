@@ -16,12 +16,13 @@ from skopt import BayesSearchCV
 from eval_utils import evaluate_model
 from lightgbm import LGBMClassifier
 from catboost import CatBoostClassifier
+from nn_models import build_simple_ffnn,  build_configurable_cnn_1d
 
 import warnings
 warnings.filterwarnings("ignore")
 #==============================================================================
 #==============================================================================
-def get_model(model_name, best_params={}):
+def get_model(model_name, best_params={}, input_shape=20):
     if model_name == 'rf':
         return RandomForestClassifier(**best_params) if best_params else RandomForestClassifier()
     elif model_name == 'lr':
@@ -50,6 +51,14 @@ def get_model(model_name, best_params={}):
         return LGBMClassifier(**best_params) if best_params else LGBMClassifier()
     elif model_name == 'catboost':
         return CatBoostClassifier(silent=True, **best_params) if best_params else CatBoostClassifier(silent=True)
+    elif model_name == 'tf_ff':
+        #return build_simple_ffnn(input_shape=2048, hidden_units=[64,32], learning_rate=0.001)
+        best_params['input_shape'] = input_shape
+        return build_simple_ffnn(**best_params) if best_params else build_simple_ffnn()
+    elif model_name == 'tf_cnn1D':
+        best_params['input_shape'] = input_shape
+        #return build_configurable_cnn_1d(input_shape=2048, conv_layers=[(64, 3)], ff_layers=[32], learning_rate=0.001)
+        return build_configurable_cnn_1d(**best_params) if best_params else build_configurable_cnn_1d()
     else:
         raise ValueError(f"Unsupported model: {model_name}")
 #==============================================================================
@@ -90,25 +99,25 @@ def train_pipeline(config,
         
         total_columns = column_names
         if config['feature_fusion_method'] != "None":
-            # === Load Training Data ===
-           
-
+            # === Load Training Data ===   
             X_train, Y_train = load_data(train_path, column_names, label_column_train, nrows_train)
             Y_train_array = np.stack(Y_train.iloc[:, 0])
-    
+            X_train_array = np.stack(X_train[column_names_j])
             # === Feature Fusion (optional) ===
             X_train, fused_column_name = fuse_columns(X_train, column_names , feature_fusion_method)
             total_columns = fused_column_name
 
         for model_name_i in model_names:
             for column_names_j in total_columns:
+                
+                # Train data
                 if config['feature_fusion_method'] == "None":
                     # === Load Training Data ===
                     X_train, Y_train = load_data(train_path, [column_names_j], label_column_train, nrows_train)
                     Y_train_array = np.stack(Y_train.iloc[:, 0])
+                    X_train_array = np.stack(X_train[column_names_j])
 
-                
-                X_train_array = np.stack(X_train[column_names_j])
+                #print(X_train_array.shape[1])
                 
                 # Model subfolder includes train filename
                 model_subfolder = os.path.join(RunFolderName, f"{train_filename}_{model_name_i}_{column_names_j}")
@@ -122,6 +131,7 @@ def train_pipeline(config,
 
                 # === Cross Validation ===
                 avg_metrics = cross_validate_and_save_models(
+                    config,
                     X_train_array=X_train_array,
                     Y_train_array=Y_train_array,
                     model_name=model_name_i,
@@ -135,6 +145,7 @@ def train_pipeline(config,
 
                 # === Final Model Training ===
                 train_and_save_final_model(
+                    config,
                     X_train_array,
                     Y_train_array,
                     model_name_i,
@@ -160,7 +171,7 @@ def train_pipeline(config,
 
 #==============================================================================
 #==============================================================================
-def cross_validate_and_save_models(X_train_array, Y_train_array, model_name, model_subfolder, Nfold, get_model, train_model, evaluate_model, best_params):
+def cross_validate_and_save_models(config, X_train_array, Y_train_array, model_name, model_subfolder, Nfold, get_model, train_model, evaluate_model, best_params):
     """
     Perform cross-validation, save fold models, and return average metrics.
 
@@ -177,31 +188,41 @@ def cross_validate_and_save_models(X_train_array, Y_train_array, model_name, mod
     Returns:
     - avg_metrics: dict — average evaluation metrics across folds
     """
-
+    tf_models = config['tf_models'] 
+    tf_dnn = True if model_name in tf_models else False
+        
     skf = StratifiedKFold(n_splits=Nfold, shuffle=True, random_state=42)
     fold_metrics = []
+    input_shape = X_train_array.shape[1]
 
     for fold_idx, (train_idx, test_idx) in enumerate(skf.split(X_train_array, Y_train_array)):
         CrossVal_data_train, CrossVal_data_test = X_train_array[train_idx], X_train_array[test_idx]
         CrossVal_label_train, CrossVal_label_test = Y_train_array[train_idx], Y_train_array[test_idx]
 
-        model_fold = get_model(model_name , best_params)
+        model_fold = get_model(model_name , best_params, input_shape)
         model_fold = train_model(model_fold, CrossVal_data_train, CrossVal_label_train)
+        
+        # Save model for this fold           
+        fold_model_path = os.path.join(model_subfolder, f"model_fold{fold_idx + 1}")    
+        if tf_dnn:
+            fold_model_path = fold_model_path + ".h5"
+            model_fold.save(fold_model_path)  # TensorFlow model
+        else:
+            fold_model_path = fold_model_path + ".pkl"
+            with open(fold_model_path , 'wb') as f:
+                pickle.dump(model_fold, f)
 
-        metrics = evaluate_model(model_fold, CrossVal_data_test, CrossVal_label_test)
+
+        metrics = evaluate_model(fold_model_path, CrossVal_data_test, CrossVal_label_test)
         fold_metrics.append(metrics)
 
-        # Save model for this fold
-        fold_model_path = os.path.join(model_subfolder, f"model_fold{fold_idx + 1}.pkl")
-        with open(fold_model_path, 'wb') as f:
-            pickle.dump(model_fold, f)
 
     # Average metrics across folds
     avg_metrics = {metric: np.mean([fold[metric] for fold in fold_metrics]) for metric in fold_metrics[0]}
     return avg_metrics
 #==============================================================================
 #==============================================================================
-def train_and_save_final_model(X_train_array, Y_train_array, model_name, model_subfolder, get_model, train_model, best_params):
+def train_and_save_final_model(config, X_train_array, Y_train_array, model_name, model_subfolder, get_model, train_model, best_params):
     """
     Trains the final model and saves it to the specified folder.
 
@@ -216,12 +237,23 @@ def train_and_save_final_model(X_train_array, Y_train_array, model_name, model_s
     Returns:
     - None
     """
-    model = get_model(model_name , best_params)
+    input_shape = X_train_array.shape[1]
+    
+    model = get_model(model_name , best_params, input_shape)
     model = train_model(model, X_train_array, Y_train_array)
-
-    model_path = os.path.join(model_subfolder, "model.pkl")
-    with open(model_path, 'wb') as f:
-        pickle.dump(model, f)
+    
+    tf_models = config['tf_models']  
+    tf_dnn = True if model_name in tf_models else False
+    
+    model_path = os.path.join(model_subfolder, "model")
+    if tf_dnn:
+        model_path = model_path + ".h5"
+        model.save(model_path)  # TensorFlow model
+    else:
+        model_path = model_path + ".pkl"
+        with open(model_path , 'wb') as f:
+            pickle.dump(model, f)
+ 
 #==============================================================================
 #==============================================================================
 def bayesian_hyperparameter_search(model_name, X_train, y_train, cv=5, n_iter=32, random_state=42):
@@ -308,6 +340,12 @@ def bayesian_hyperparameter_search(model_name, X_train, y_train, cv=5, n_iter=32
         return {}
     elif model_name == 'catboost':
         print("Bayesian hyperparameter search is not available for CatBoost in this pipeline.")
+        return {}
+    elif model_name == 'tf_ff':
+        print("use kers tuner. ADD THIS PART OF THE CODE LATER!!!!!!!!!!!!!!!!!!!!!")   
+        return {}
+    elif model_name == 'tf_cnn1D':
+        print("use kers tuner. ADD THIS PART OF THE CODE LATER!!!!!!!!!!!!!!!!!!!!!")
         return {}
     else:
         raise ValueError(f"Unsupported model for tuning: {model_name}")

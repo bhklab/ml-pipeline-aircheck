@@ -17,6 +17,8 @@ import joblib
 
 import logging
 from dotenv import load_dotenv
+from tensorflow.keras.models import load_model
+
 load_dotenv()
 # Suppress only MLflow model logger warnings
 logging.getLogger("mlflow.models.model").setLevel(logging.ERROR)
@@ -86,7 +88,7 @@ def log_results_to_mlflow(RunFolderName, experiment_name ,run_name):
             # exit()
             for col in model_cols:
                 model_path = row[col]
-                model_file = os.path.join(model_path, "model.pkl")
+                '''model_file = os.path.join(model_path, "model.pkl")
                 if os.path.exists(model_file):
                     try:
                         # Option 1: Log as artifact 
@@ -105,4 +107,49 @@ def log_results_to_mlflow(RunFolderName, experiment_name ,run_name):
                         except Exception as e2:
                             print(f"Fallback artifact logging also failed: {e2}")
                 else:
-                    print(f"Warning: model file {model_file} does not exist.")
+                    print(f"Warning: model file {model_file} does not exist.")'''
+                model_file = None
+                for ext in [".pkl", ".h5"]:
+                    candidate = os.path.join(model_path, f"model{ext}")
+                    if os.path.exists(candidate):
+                        model_file = candidate
+                        break
+            
+                if model_file:
+                    try:
+                        if model_file.endswith(".pkl"):
+                            model_obj = joblib.load(model_file)
+                            mlflow.sklearn.log_model(model_obj, artifact_path="model")
+                            print(f"Logged sklearn model from {model_file}")
+            
+                        elif model_file.endswith(".h5"):
+                            model_obj = load_model(model_file)
+                            mlflow.keras.log_model(model_obj, artifact_path="model")
+                            print(f"Logged Keras model from {model_file}")
+            
+                    except Exception as e:
+                        print(f"Could not log model from {model_file}. Error: {e}")
+                        try:
+                            mlflow.log_artifact(model_file, artifact_path="model_backup")
+                            print(f"Logged model file as artifact (backup): {model_file}")
+                        except Exception as e2:
+                            print(f"Backup artifact logging failed: {e2}")
+                else:
+                    print(f"Warning: No model file (.pkl or .h5) found in {model_path}")
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    

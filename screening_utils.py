@@ -15,6 +15,7 @@ from rdkit import DataStructs
 from rdkit.SimDivFilters import rdSimDivPickers
 from collections import defaultdict
 from tqdm import tqdm
+from tensorflow.keras.models import load_model
 #------------------------------------------------------------------------------
 
 
@@ -276,7 +277,7 @@ def calculate_screening_probabilities(config, RunFolderName, load_data, get_mode
         ScreenResults = pd.DataFrame()
         ScreenResults[smiles_column] = smiles_column_values
         
-        for i, row in best_models_df.iterrows():
+        '''for i, row in best_models_df.iterrows():
             # Load model path
             model_path = row["ModelPath"]
             if os.path.isdir(model_path):
@@ -295,7 +296,42 @@ def calculate_screening_probabilities(config, RunFolderName, load_data, get_mode
         
             # Predict
             y_pred = model.predict(X_feature)
-            y_proba = model.predict_proba(X_feature)[:, 1]  # Get positive class prob
+            y_proba = model.predict_proba(X_feature)[:, 1]  # Get positive class prob'''
+        
+        for i, row in best_models_df.iterrows():
+            # Load model path
+            model_path = row["ModelPath"]
+        
+            # If it's a folder, search for the actual model file inside
+            if os.path.isdir(model_path):
+                found = False
+                for fname in os.listdir(model_path):
+                    if fname.endswith(".pkl") or fname.endswith(".h5"):
+                        model_path = os.path.join(model_path, fname)
+                        found = True
+                        break
+                if not found:
+                    raise FileNotFoundError(f"No supported model file (.pkl or .h5) found in {model_path}")
+        
+            column_name = row["ColumnName"]
+            X_feature = np.stack(X_screen[column_name].values)
+            Y_dummy = np.ones(len(X_feature), dtype=int)
+        
+            # Check model exists
+            if not os.path.exists(model_path):
+                raise FileNotFoundError(f"Model file not found: {model_path}")
+        
+            # Load and use the model depending on file type
+            if model_path.endswith(".h5"):
+                model = load_model(model_path)
+                y_pred = (model.predict(X_feature) > 0.5).astype(int).flatten()
+                y_proba = model.predict(X_feature).flatten()
+            else:
+                with open(model_path, 'rb') as f:
+                    model = pickle.load(f)
+                y_pred = model.predict(X_feature)
+                y_proba = model.predict_proba(X_feature)[:, 1]
+
         
             all_probs.append(y_proba)
             

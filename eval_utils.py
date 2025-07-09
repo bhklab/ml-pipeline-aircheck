@@ -9,12 +9,11 @@ from rdkit.DataStructs  import BulkTanimotoSimilarity
 from tqdm import tqdm 
 import ast
 from sklearn.model_selection import train_test_split
-
-# top 100, 2000 metrics?? Number of hits?
-# Threshold??????
+from tensorflow.keras.models import load_model
 
 
-#==============================================================================
+
+#-------------------------------------
 from sklearn.metrics import (
     accuracy_score,
     precision_score,
@@ -27,33 +26,27 @@ from sklearn.metrics import (
     balanced_accuracy_score,
     average_precision_score,
 )
-#==============================================================================
-def evaluate_model(model, X_test, y_test):
-    y_pred = model.predict(X_test)
-    y_proba = model.predict_proba(X_test)[:, 1]
+#-------------------------------------
+def evaluate_model(model_path, X_test, y_test):
+    #-----
+    if not os.path.exists(model_path):
+        print(f"Error: Model file not found at '{model_path}'. Please ensure the model was saved correctly during training.")
+        raise SystemExit("Terminating: Model file missing.")
+
+    if model_path.endswith('.h5'):
+        model = load_model(model_path)
+        y_proba = model.predict(X_test).flatten() 
+        y_pred = (y_proba > 0.5).astype(int)       
+    else:
+        with open(model_path, 'rb') as f:
+            model = pickle.load(f)
+            y_pred = model.predict(X_test)
+            y_proba = model.predict_proba(X_test)[:, 1]
+    #-----          
     metrics = calculate_metrics(X_test,y_test,  y_pred, y_proba)
     return metrics
-#==============================================================================
-'''def calculate_metrics(X_test,y_test,  y_pred, y_proba):  
-    ppv = precision_score(y_test, y_pred)
-    p_ppv = plate_ppv(y_test, y_pred, top_n=128) # Why this number!!! edit later !!!!!!!!!!
-    clusters = cluster_leader_from_array (X_test)
-    dp_ppv = diverse_plate_ppv(y_test, y_pred, clusters=clusters.tolist())
+#-------------------------------------
 
-    metrics = {
-        "Accuracy": accuracy_score(y_test, y_pred),
-        "Precision": precision_score(y_test, y_pred, zero_division=0),
-        "Recall": recall_score(y_test, y_pred, zero_division=0),
-        "F1 Score": f1_score(y_test, y_pred, zero_division=0),
-        "AUC-ROC": roc_auc_score(y_test, y_proba),
-        "AUC-PR": average_precision_score(y_test, y_proba),
-        "MCC": matthews_corrcoef(y_test, y_pred),
-        "Cohen Kappa": cohen_kappa_score(y_test, y_pred),
-        "balanced_accuracy": balanced_accuracy_score(y_test, y_pred),
-        "PlatePPV": p_ppv,
-        "DivPlatePPV": dp_ppv
-    }
-    return metrics'''
 
 #-------------------------------------
 def hits_and_precision_at_k(y_true, y_pred, y_scores, k):
@@ -94,8 +87,8 @@ def calculate_metrics(X_test, y_test, y_pred, y_proba):
         "Precision": ppv,
         "Recall": recall_score(y_test_array, y_pred_array, zero_division=0),
         "F1Score": f1_score(y_test_array, y_pred_array, zero_division=0),
-        "AUC-ROC": roc_auc_score(y_test_array, y_proba_array),
-        "AUC-PR": average_precision_score(y_test_array, y_proba_array),
+        "AUC-ROC": roc_auc_score(y_test_array, y_proba_array) if len(set(y_test_array)) > 1 else None,
+        "AUC-PR": average_precision_score(y_test_array, y_proba_array) if len(set(y_test_array)) > 1 else None,
         "MCC": matthews_corrcoef(y_test_array, y_pred_array),
         "Cohen Kappa": cohen_kappa_score(y_test_array, y_pred_array),
         "balanced_accuracy": balanced_accuracy_score(y_test_array, y_pred_array),
@@ -201,21 +194,32 @@ def test_pipeline(config,
     df = pd.read_csv(results_path)
 
     updated_rows = []
+    
+
+    
+
 
     for test_path in test_paths:
         if config['feature_fusion_method']!="None":
             # Load test data
             X_test, Y_test = load_data(test_path, column_names, label_column_test, nrows_test)
             Y_test_array = np.stack(Y_test.iloc[:, 0])
-    
+            X_test_array = np.stack(X_test[column_name])
             # === Feature Fusion  ===
             X_test, fused_column_name = fuse_columns(X_test, column_names, feature_fusion_method)
 
         for rowcount, row in df.iterrows():
             # print("testing models, row:", rowcount)
             model_path = row["ModelPath"]
+            model_name = row ["ModelType"]
+            tf_models = config['tf_models']  
+            tf_dnn = True if model_name in tf_models else False
+            
             if os.path.isdir(model_path):
-                model_path = os.path.join(model_path, "model.pkl")
+                if tf_dnn:
+                    model_path = os.path.join(model_path, "model.h5")
+                else:
+                    model_path = os.path.join(model_path, "model.pkl")
 
             column_name = row["ColumnName"]
             
@@ -223,28 +227,18 @@ def test_pipeline(config,
                 # Load test data
                 X_test, Y_test = load_data(test_path, [column_name], label_column_test, nrows_test)
                 Y_test_array = np.stack(Y_test.iloc[:, 0])
-
-            try:
                 X_test_array = np.stack(X_test[column_name])
-            except KeyError:
-                print(f"Column '{column_name}' not in test file: {test_path}. Skipping.")
-                continue
             
-            # Check if the model file exists
-            if not os.path.exists(model_path):
-                print(f"Error: Model file not found at '{model_path}'. Please ensure the model was saved correctly during training.")
-                raise SystemExit("Terminating: Model file missing.")
-
-            with open(model_path, 'rb') as f:
-                model = pickle.load(f)
-
-            test_metrics = evaluate_model(model, X_test_array, Y_test_array)
+            test_metrics = evaluate_model(model_path, X_test_array, Y_test_array)
             
             
-            if conformal_prediction.lower() == 'y':   
+            if conformal_prediction.lower() == 'y' and not tf_dnn:   
                 [confromal_coverage_score, confromal_confidence_score, y_pred_set] = compute_conformal_prediction(get_model, train_model, load_data,fuse_columns,row,nrows_train,feature_fusion_method, X_test_array, Y_test_array)
                 row["confromal_coverage_score"] = confromal_coverage_score
                 row["confromal_confidence_score"] = confromal_confidence_score
+            else:
+                row["confromal_coverage_score"] = None
+                row["confromal_confidence_score"] = None
 
             row_result = row.copy()
             for key, value in test_metrics.items():

@@ -66,7 +66,7 @@ def run_pipeline(config_name="config.yaml"):
     run_name = f"{config.get('protein_name')}_{timestamp}"
     log_results_to_mlflow (RunFolderName, config.get("experiment_name", "Default_Experiment"), run_name)
     
-    print("Step 9: Loplotting some results")
+    print("Step 9: Plotting some results")
     plot_function(RunFolderName)
 #=========================================================================='''
 

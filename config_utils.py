@@ -165,7 +165,9 @@ def validate_config(config_path):
 
     # Validate Model Names (Required)
     supported_models = ['rf', 'lr', 'svc', 'nb', 
-                        'dt', 'knn', 'gb', 'ada', 'bag', 'mlp', 'lgbm', 'catboost']
+                        'dt', 'knn', 'gb', 'ada', 'bag', 'mlp', 'lgbm', 'catboost', 'tf_ff', 'tf_cnn1D']
+    tf_models=["tf_ff","tf_cnn1D"] 
+    config['tf_models']= tf_models
     
     if not isinstance(config.get('desired_models'), list):
         errors.append("desired_models must be a list.")

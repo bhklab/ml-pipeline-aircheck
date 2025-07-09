@@ -55,15 +55,17 @@ chemistry_filters: 'y' #  (N:for no, Y: for yes)
 # mlp: Multi-layer Perceptron
 # lgbm:
 # catboost:
-# desired_models: [rf, lr, sgd, svc, nb, dt, knn, gb, ada, bag, mlp, lgbm, catboost]
-desired_models: [lr]
+# tf_ff: tensorflow simple feed forward neural network
+# desired_models: [rf, lr, sgd, svc, nb, dt, knn, gb, ada, bag, mlp, lgbm, catboost, tf_ff, tf_cnn1D]
+desired_models: [tf_ff]
 
 # Models' Hyperparameters tuning
 hyperparameters_tuning: 'N' #  (N:for no, Y: for yes)
 
 # Specifying hyperparameters
-hyperparameters: 
+hyperparameters: {tf_ff: {input_shape: 2048, hidden_units: [128, 64], learning_rate: 0.0005}}
 # {rf:{n_estimators: 150, max_depth: 10}} # hyperparameters: {}  # use default
+# UsedHyperParameters: {rf: {n_estimators: 150, max_depth: 10}, tf_ff: {input_shape: 2048, hidden_units: [128, 64], learning_rate: 0.0005}, tf_cnn1D: {input_shape: 2048, conv_layers: [[64, 3], [32, 3]], ff_layers: [64, 32], learning_rate: 0.001}}
 
 # Cross validation
 Nfold: 2 # Number of folds for the Crossfold validatrion method

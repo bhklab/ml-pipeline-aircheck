@@ -11,6 +11,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from eval_utils import calculate_metrics
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, matthews_corrcoef, cohen_kappa_score
+from tensorflow.keras.models import load_model
 #==============================================================================
 # Function to plot radar chart for model metrics
 def plot_model_metrics_radar(df, metric_columns, save_path=""):
@@ -62,6 +63,8 @@ def select_best_models(config, RunFolderName):
     crossvalidation_column = config['crossvalidation_column']
     num_top_models = config['num_top_models']
     Fusion = config['Fusion']
+    tf_models = config['tf_models']  
+    
     
     if Fusion.lower() != 'y':
         num_top_models = 1
@@ -125,11 +128,23 @@ def select_best_models(config, RunFolderName):
     os.makedirs(best_models_folder, exist_ok=True)
     for path in best_models['ModelPath']:
         model_name = os.path.basename(path)
-        model_file = os.path.join(path, "model.pkl") 
+        
+        modelname = best_models['ModelType'].iloc[0]
+        tf_dnn = True if modelname in tf_models else False
+
+        if tf_dnn:
+            model_file = os.path.join(path, "model.h5") 
+        else:
+            model_file = os.path.join(path, "model.pkl") 
         
         if os.path.exists(model_file):
             # Create the new name with the folder name prefix
-            new_model_name = f"{model_name}_model.pkl"
+            if tf_dnn:
+                new_model_name = f"{model_name}_model.h5"
+            else:
+                new_model_name = f"{model_name}_model.pkl"
+                
+            
             model_save_path = os.path.join(best_models_folder, new_model_name)
             
             # Copy the model file with the new name
@@ -170,10 +185,11 @@ def fusion_pipeline(config,
     
     # Path to Best Models
     best_models_folder = os.path.join(RunFolderName, "BestModels")
+    valid_extensions = [".pkl", ".h5", ".pt"]  # Add .pt if you support PyTorch later
     model_files = [
         os.path.join(best_models_folder, f) 
         for f in os.listdir(best_models_folder) 
-        if f.endswith(".pkl")
+        if any(f.endswith(ext) for ext in valid_extensions)
     ]
 
     if not model_files:
@@ -195,7 +211,7 @@ def fusion_pipeline(config,
 
         # Run each model
         for model_file in model_files:
-            model_name = os.path.basename(model_file).replace(".pkl", "")
+            '''model_name = os.path.basename(model_file).replace(".pkl", "")
 
             with open(model_file, 'rb') as f:
                 model = pickle.load(f)
@@ -209,7 +225,32 @@ def fusion_pipeline(config,
             y_proba = model.predict_proba(X_test_array)[:, 1]
 
             y_preds.append(y_pred)
+            y_probas.append(y_proba)'''
+            
+
+            ext = os.path.splitext(model_file)[-1].lower()
+            model_name = os.path.basename(model_file).replace(ext, "")
+            column_name = model_name.split("_")[-2]
+            X_test_array = np.stack(X_test[column_name])
+
+            if ext == ".pkl":
+                with open(model_file, 'rb') as f:
+                    model = pickle.load(f)
+
+                y_pred = model.predict(X_test_array)
+                y_proba = model.predict_proba(X_test_array)[:, 1]
+
+            elif ext == ".h5":
+                model = load_model(model_file)
+                y_proba = model.predict(X_test_array).flatten()
+                y_pred = (y_proba > 0.5).astype(int)
+
+            else:
+                raise ValueError(f"Unsupported model format: {ext}")
+
+            y_preds.append(y_pred)
             y_probas.append(y_proba)
+
 
         # Average predictions and probabilities across all models
         y_pred_fusion = np.mean(y_preds, axis=0).round().astype(int)

@@ -10,3 +10,4 @@ catboost_info/
 plots/
 service_account.json
 .env
+.env0
