@@ -1,7 +1,6 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
-import os
 
 def plot_function(RunFolderName):
 
@@ -11,6 +10,7 @@ def plot_function(RunFolderName):
     
     # === Load data ===
     df = pd.read_csv(csv_path)
+
     
     # === Metrics to plot ===
     metrics = [

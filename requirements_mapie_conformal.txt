@@ -1,4 +1,4 @@
-python==3.11
+# python==3.11
 git+https://github.com/scikit-learn-contrib/MAPIE.git
 pandas
 numpy
@@ -12,3 +12,6 @@ rdkit
 pyarrow
 mlflow
 lightgbm
+tensorflow
+google-cloud-storage
+dotenv
