@@ -405,13 +405,12 @@ class ModelTrainer:
 
 
                 if feature_fusion_method and feature_fusion_method.lower() != "none":
-                    X_train, Y_train = DataLoader.load_data(train_path, column_names, label_column_train, nrows_train)
-        
-                    if Y_train.empty:
+                    X_train, Y_train = DataLoader.load_data(train_path, column_names, label_column_train, nrows_train)        
+                    '''if Y_train.empty:
                         raise ValueError(f"No data found in the label column '{label_column_train}' of the training file: {train_path}")
                     if not isinstance(Y_train, pd.DataFrame):
                         raise ValueError(f"Y_train must be a pandas DataFrame, got {type(Y_train)}")
-                    Y_train_array = np.stack(Y_train.iloc[:, 0])
+                    Y_train_array = np.stack(Y_train.iloc[:, 0])'''
                     X_train, fused_column_names = DataProcessor.fuse_columns(X_train, column_names, feature_fusion_method)
                     total_columns = fused_column_names
                 else:
@@ -421,14 +420,17 @@ class ModelTrainer:
                     for column_name in total_columns:
                         if not fused_column_names:
                             X_train, Y_train = DataLoader.load_data(train_path, [column_name], label_column_train, nrows_train)
-
-                            if Y_train.empty:
+                            '''if Y_train.empty:
                                 raise ValueError(f"No data found in the label column '{label_column_train}' of the training file: {train_path}")
                             if not isinstance(Y_train, pd.DataFrame):
                                 raise ValueError(f"Y_train must be a pandas DataFrame, got {type(Y_train)}")
-                            Y_train_array = np.stack(Y_train.iloc[:, 0])
+                            Y_train_array = np.stack(Y_train.iloc[:, 0])'''
                            
-
+                        if Y_train.empty:
+                            raise ValueError(f"No data found in the label column '{label_column_train}' of the training file: {train_path}")
+                        if not isinstance(Y_train, pd.DataFrame):
+                            raise ValueError(f"Y_train must be a pandas DataFrame, got {type(Y_train)}")
+                        Y_train_array = np.stack(Y_train.iloc[:, 0])
                         X_train_array = np.stack(X_train[column_name])
                         model_subfolder = RunFolderName / f"{train_filename}_{model_name}_{column_name}"
                         os.makedirs(model_subfolder, exist_ok=True)

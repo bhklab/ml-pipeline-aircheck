@@ -452,7 +452,7 @@ class ModelEvaluator:
 
                 if feature_fusion_method and feature_fusion_method.lower() != "none":
                     X_test, Y_test = DataLoader.load_data(test_path, column_names, label_column_test, nrows_test)
-                    Y_test_array = np.stack(Y_test.iloc[:, 0])
+                    #Y_test_array = np.stack(Y_test.iloc[:, 0])
                     X_test, fused_column_names = DataProcessor.fuse_columns(X_test, column_names, feature_fusion_method)
                 else:
                     fused_column_names = None
@@ -472,7 +472,7 @@ class ModelEvaluator:
 
                     if not fused_column_names:
                         X_test, Y_test = DataLoader.load_data(test_path, [column_name], label_column_test, nrows_test)
-                        Y_test_array = np.stack(Y_test.iloc[:, 0])
+                        #Y_test_array = np.stack(Y_test.iloc[:, 0])
 
                     if column_name not in X_test.columns:
                         print(f"Column '{column_name}' not in test file: {test_path}. Skipping.")
@@ -483,7 +483,8 @@ class ModelEvaluator:
 
                     # with open(model_path, 'rb') as f:
                     #     model = pickle.load(f)
-
+                    
+                    Y_test_array = np.stack(Y_test.iloc[:, 0])
                     X_test_array = np.stack(X_test[column_name])
                     test_metrics = ModelEvaluator.evaluate_model(model_path, X_test_array, Y_test_array)
 

@@ -92,3 +92,19 @@ target/
 
 # Mypy cache
 .mypy_cache/
+
+
+
+.vs/
+Temporary.py
+confromal.py
+Downsize.py
+__pycache__/
+mlruns/
+run_test/
+run_test - Copy/
+catboost_info/
+plots/
+service_account.json
+.env
+.env0

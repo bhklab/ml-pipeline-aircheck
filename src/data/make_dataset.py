@@ -133,11 +133,12 @@ class DataProcessor:
             elif feature_fusion_method == "pairwise":
                 for i, col1 in enumerate(column_names):
                     for j, col2 in enumerate(column_names):
-                        if col1 != col2:
-                            fused_col_name = f"{col1}_{col2}"
-                            fused_array = np.concatenate((np.stack(X[col1]), np.stack(X[col2])), axis=1)
-                            X[fused_col_name] = list(fused_array)
-                            fused_column_names.append(fused_col_name)
+                        if i < j:
+                            if col1 != col2:
+                                fused_col_name = f"{col1}_{col2}"
+                                fused_array = np.concatenate((np.stack(X[col1]), np.stack(X[col2])), axis=1)
+                                X[fused_col_name] = list(fused_array)
+                                fused_column_names.append(fused_col_name)
 
             return X, fused_column_names
         except Exception as e:
