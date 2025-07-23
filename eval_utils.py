@@ -201,10 +201,9 @@ def test_pipeline(config,
 
     for test_path in test_paths:
         if config['feature_fusion_method']!="None":
-            # Load test data
             X_test, Y_test = load_data(test_path, column_names, label_column_test, nrows_test)
-            Y_test_array = np.stack(Y_test.iloc[:, 0])
-            X_test_array = np.stack(X_test[column_name])
+            #Y_test_array = np.stack(Y_test.iloc[:, 0])
+            #X_test_array = np.stack(X_test[column_name])
             # === Feature Fusion  ===
             X_test, fused_column_name = fuse_columns(X_test, column_names, feature_fusion_method)
 
@@ -226,9 +225,10 @@ def test_pipeline(config,
             if config['feature_fusion_method']=="None":
                 # Load test data
                 X_test, Y_test = load_data(test_path, [column_name], label_column_test, nrows_test)
-                Y_test_array = np.stack(Y_test.iloc[:, 0])
-                X_test_array = np.stack(X_test[column_name])
-            
+                #Y_test_array = np.stack(Y_test.iloc[:, 0])
+                #X_test_array = np.stack(X_test[column_name])
+            Y_test_array = np.stack(Y_test.iloc[:, 0])
+            X_test_array = np.stack(X_test[column_name])
             test_metrics = evaluate_model(model_path, X_test_array, Y_test_array)
             
             

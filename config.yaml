@@ -16,14 +16,14 @@ train_data: [Data/TrainFiles/small_train.parquet]
 test_data: [Data/TestFiles/small_test.parquet]
             
 # desired_columns:  [ECFP4, ECFP6, FCFP4, FCFP6, TOPTOR, MACCS, RDK, AVALON, ATOMPAIR]                
-desired_columns: [ECFP4] # Correct format: [ECFP4], and [ECFP4, ECFP6, ...] if multuple columns
+desired_columns: [ECFP4, ECFP6] # Correct format: [ECFP4], and [ECFP4, ECFP6, ...] if multuple columns
 label_column_train: [LABEL]
 label_column_test: [LABEL]
 nrows_train: 'None' # integer or 'None' 
 nrows_test: 'None'
 
 # Note: selecting feature fusion makes the code so slow. Avoid it for big datasets!!
-feature_fusion_method: 'None' # options: None, All, Pairwise
+feature_fusion_method: 'Pairwise' # options: None, All, Pairwise
 
 # create_balanced_datasets
 balance_flag: False # Creating blanced train sets (True/False)
@@ -57,7 +57,7 @@ chemistry_filters: 'y' #  (N:for no, Y: for yes)
 # catboost:
 # tf_ff: tensorflow simple feed forward neural network
 # desired_models: [rf, lr, sgd, svc, nb, dt, knn, gb, ada, bag, mlp, lgbm, catboost, tf_ff, tf_cnn1D]
-desired_models: [tf_ff]
+desired_models: [lr]
 
 # Models' Hyperparameters tuning
 hyperparameters_tuning: 'N' #  (N:for no, Y: for yes)

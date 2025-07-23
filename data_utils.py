@@ -109,14 +109,15 @@ def fuse_columns(X, column_names, feature_fusion_method=None):
         # Fuse each column with all other columns one by one
         for i, col1 in enumerate(column_names):
             for j, col2 in enumerate(column_names):
-                if col1 != col2:  # Avoid self-fusion
-                    fused_col_name = f"{col1}_{col2}"
-                    fused_array = np.concatenate(
-                        (np.stack(X[col1]), np.stack(X[col2])),
-                        axis=1
-                    )
-                    X[fused_col_name] = list(fused_array)
-                    fused_column_names.append(fused_col_name)
+                if i < j: 
+                    if col1 != col2:  # Avoid self-fusion
+                        fused_col_name = f"{col1}{col2}"
+                        fused_array = np.concatenate(
+                            (np.stack(X[col1]), np.stack(X[col2])),
+                            axis=1
+                        )
+                        X[fused_col_name] = list(fused_array)
+                        fused_column_names.append(fused_col_name)
     
     else:
         raise ValueError("Invalid feature_fusion_method. Choose 'All', 'Pairwise', or None.")

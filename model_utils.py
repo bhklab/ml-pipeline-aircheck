@@ -99,10 +99,9 @@ def train_pipeline(config,
         
         total_columns = column_names
         if config['feature_fusion_method'] != "None":
-            # === Load Training Data ===   
             X_train, Y_train = load_data(train_path, column_names, label_column_train, nrows_train)
-            Y_train_array = np.stack(Y_train.iloc[:, 0])
-            X_train_array = np.stack(X_train[column_names_j])
+            #Y_train_array = np.stack(Y_train.iloc[:, 0])
+            #X_train_array = np.stack(X_train[column_names_j])
             # === Feature Fusion (optional) ===
             X_train, fused_column_name = fuse_columns(X_train, column_names , feature_fusion_method)
             total_columns = fused_column_name
@@ -112,11 +111,11 @@ def train_pipeline(config,
                 
                 # Train data
                 if config['feature_fusion_method'] == "None":
-                    # === Load Training Data ===
                     X_train, Y_train = load_data(train_path, [column_names_j], label_column_train, nrows_train)
-                    Y_train_array = np.stack(Y_train.iloc[:, 0])
-                    X_train_array = np.stack(X_train[column_names_j])
-
+                    #Y_train_array = np.stack(Y_train.iloc[:, 0])
+                    #X_train_array = np.stack(X_train[column_names_j])
+                Y_train_array = np.stack(Y_train.iloc[:, 0])
+                X_train_array = np.stack(X_train[column_names_j])
                 #print(X_train_array.shape[1])
                 
                 # Model subfolder includes train filename
