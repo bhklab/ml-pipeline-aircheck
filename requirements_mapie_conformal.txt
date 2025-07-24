@@ -1,5 +1,6 @@
 # python==3.11
-git+https://github.com/scikit-learn-contrib/MAPIE.git
+# git+https://github.com/scikit-learn-contrib/MAPIE.git
+mapie
 pandas
 numpy
 scikit-learn

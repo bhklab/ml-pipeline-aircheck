@@ -1,7 +1,7 @@
 ml-pipeline:
   version: 1.0.0
   description: "AIRCHECK ML Pipeline Configuration"
-  run_name: "run_test"
+  run_name: "run_test_check"
   experiment_name: "WDR91_Experiment_test_one" # Experiment Name
   
   protein_name: "WDR91" # Target Name
