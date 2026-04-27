@@ -1,0 +1,15 @@
+pandas
+numpy
+scikit-learn
+PyYAML
+catboost
+scikit-optimize
+matplotlib
+tqdm
+rdkit
+pyarrow
+mlflow
+lightgbm
+google-cloud-storage
+dotenv
+tensorflow
