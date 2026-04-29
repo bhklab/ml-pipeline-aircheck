@@ -248,7 +248,7 @@ def calculate_screening_probabilities(config, RunFolderName, load_data, get_mode
         print("The test pipeline doesn’t run because it’s not requested. The test flag in the config file is set to 'N' or 'n'.")
         return
     #-----------   
-    best_model_path = os.path.join(RunFolderName, "BestModelsResults.csv")
+    best_model_path = os.path.join(RunFolderName, "BestModels", "BestModelsResults.csv")
     if not os.path.exists(best_model_path):
         raise FileNotFoundError(f"Required file not found: {best_model_path}")
 

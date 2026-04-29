@@ -13,3 +13,5 @@ lightgbm
 google-cloud-storage
 dotenv
 tensorflow
+umap-learn
+optuna

@@ -151,9 +151,13 @@ def validate_config(config_path):
     elif isinstance(config.get('nrows_test'), str) and config['nrows_test'].lower() == 'none':
         config['nrows_test'] = None
 
-    # Validate Feature Fusion Method (Default: None)
+    # Validate Feature Fusion Method (Default: None). Accepts a single string or a list.
     valid_fusion_methods = ['None', 'All', 'Pairwise']
-    if config.get('feature_fusion_method') not in valid_fusion_methods:
+    fm = config.get('feature_fusion_method')
+    if isinstance(fm, list):
+        if not fm or not all(m in valid_fusion_methods for m in fm):
+            config['feature_fusion_method'] = 'None'
+    elif fm not in valid_fusion_methods:
         config['feature_fusion_method'] = 'None'
 
     # Validate Balance Settings (Defaults)
@@ -207,6 +211,35 @@ def validate_config(config_path):
 
     if not isinstance(config.get('num_top_models'), int) or config['num_top_models'] <= 0:
         config['num_top_models'] = 5
+
+    # Substitute the literal token "K" in evaluation_column / crossvalidation_column
+    # with the value of area_hits_K, so changing area_hits_K doesn't require
+    # editing the column lists. e.g. "Test_AreaHitsAtK" -> "Test_AreaHitsAt500".
+    area_K = config.get('area_hits_K', 500)
+    try:
+        area_K = int(area_K)
+    except (TypeError, ValueError):
+        area_K = 500
+    config['area_hits_K'] = area_K
+
+    def _sub_K(items):
+        if not isinstance(items, list):
+            return items
+        out = []
+        for s in items:
+            if isinstance(s, str):
+                # Word-boundary-ish replace: only replace 'K' when preceded by a non-letter
+                # so we don't accidentally munge other column names. The pattern is
+                # 'AtK', 'at_K', '_K' — all uppercase K following a non-letter is safe.
+                out.append(s.replace('K', str(area_K)) if 'K' in s else s)
+            else:
+                out.append(s)
+        return out
+
+    if 'evaluation_column' in config:
+        config['evaluation_column'] = _sub_K(config['evaluation_column'])
+    if 'crossvalidation_column' in config:
+        config['crossvalidation_column'] = _sub_K(config['crossvalidation_column'])
 
     # Output errors or return validated config
     if errors:

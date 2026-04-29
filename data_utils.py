@@ -73,29 +73,42 @@ def load_data(path, column_names, label_column, nrows):
 #==============================================================================
 def fuse_columns(X, column_names, feature_fusion_method=None):
     """
-    Fuses multiple array-like columns from a DataFrame into a single new column.
+    Fuses multiple array-like columns from a DataFrame into one or more new columns.
 
     Parameters:
     - X: pd.DataFrame
-    - column_names: list of str — column names to be fused
-    - feature_fusion_method: str or None — "All" (fuse all) or "Pairwise" (each column with all others)
+    - column_names: list of str — base column names available for fusing
+    - feature_fusion_method: str or list of str — any combination of 'None', 'All', 'Pairwise'.
+        - 'None'     : keep the original columns
+        - 'All'      : add one column that is the concatenation of all base columns
+        - 'Pairwise' : add one column for every pair of base columns
+        Multiple modes can be combined, e.g. ['None', 'All', 'Pairwise'].
 
     Returns:
-    - X: updated DataFrame with new fused column(s)
-    - fused_column_names: list of new fused column names
+    - X: updated DataFrame, possibly with new fused columns added
+    - fused_column_names: list of column names to use downstream (originals and/or fused)
     """
-    # If method is None, do nothing and return the original DataFrame
-    if feature_fusion_method.lower() == "none":
-        return X, column_names
+    # Normalize to a list of lowercase method names
+    if isinstance(feature_fusion_method, str):
+        methods = [feature_fusion_method]
+    else:
+        methods = list(feature_fusion_method)
+    methods = [m.lower() for m in methods]
 
-    # Convert method to lowercase to be case-insensitive
-    feature_fusion_method = feature_fusion_method.lower()
+    valid = {"none", "all", "pairwise"}
+    invalid = [m for m in methods if m not in valid]
+    if invalid:
+        raise ValueError(f"Invalid feature_fusion_method values: {invalid}. Valid options: None, All, Pairwise.")
+
     fused_column_names = []
 
-    if feature_fusion_method.lower() == "all":
-        # Fuse all columns into one
-        fused_column_name = "_".join(column_names)
-        for j, column_name in enumerate(column_names):  
+    if "none" in methods:
+        fused_column_names.extend(column_names)
+
+    if "all" in methods:
+        # Fuse all columns into one. Use '-' separator so base descriptors can be recovered later.
+        fused_column_name = "-".join(column_names)
+        for j, column_name in enumerate(column_names):
             current_array = np.stack(X[column_name])
             if j == 0:
                 fused_array = current_array
@@ -105,22 +118,19 @@ def fuse_columns(X, column_names, feature_fusion_method=None):
         X[fused_column_name] = list(fused_array)
         fused_column_names.append(fused_column_name)
 
-    elif feature_fusion_method.lower() == "pairwise":
-        # Fuse each column with all other columns one by one
+    if "pairwise" in methods:
+        # Fuse each column with all other columns one by one. Use '-' separator.
         for i, col1 in enumerate(column_names):
             for j, col2 in enumerate(column_names):
-                if i < j: 
+                if i < j:
                     if col1 != col2:  # Avoid self-fusion
-                        fused_col_name = f"{col1}{col2}"
+                        fused_col_name = f"{col1}-{col2}"
                         fused_array = np.concatenate(
                             (np.stack(X[col1]), np.stack(X[col2])),
                             axis=1
                         )
                         X[fused_col_name] = list(fused_array)
                         fused_column_names.append(fused_col_name)
-    
-    else:
-        raise ValueError("Invalid feature_fusion_method. Choose 'All', 'Pairwise', or None.")
 
     return X, fused_column_names
 
