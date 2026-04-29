@@ -1,11 +1,11 @@
 from json import load
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, AdaBoostClassifier, BaggingClassifier
-from sklearn.linear_model import LogisticRegression, RidgeClassifier, SGDClassifier, Perceptron
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, AdaBoostClassifier, BaggingClassifier, RandomForestRegressor
+from sklearn.linear_model import LogisticRegression, RidgeClassifier, SGDClassifier, Perceptron, Ridge
 from sklearn.svm import SVC
 from sklearn.naive_bayes import GaussianNB
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.neighbors import KNeighborsClassifier
-from catboost import CatBoostClassifier
+from catboost import CatBoostClassifier, CatBoostRegressor
 from sklearn.neural_network import MLPClassifier
 from sklearn.model_selection import StratifiedKFold
 import pandas as pd
@@ -15,11 +15,37 @@ import numpy as np
 from skopt import BayesSearchCV
 from eval_utils import evaluate_model
 from lightgbm import LGBMClassifier, LGBMRegressor
-from catboost import CatBoostClassifier
 from nn_models import build_simple_ffnn,  build_configurable_cnn_1d
 
 import warnings
 warnings.filterwarnings("ignore")
+#==============================================================================
+#==============================================================================
+def _log_training_failure(RunFolderName, train_filename, model_name, column_name, stage, exc):
+    """Append a row to {RunFolderName}/training_failures.csv and print a short message.
+
+    Used to keep the pipeline running when a single (model, column) combo or
+    a single CV fold fails — the bad combo is recorded but doesn't take down
+    the whole run.
+    """
+    import traceback
+    tb_lines = traceback.format_exc(limit=3).strip().splitlines()
+    short_tb = " | ".join(line.strip() for line in tb_lines[-3:])
+    os.makedirs(RunFolderName, exist_ok=True)
+    failures_path = os.path.join(RunFolderName, 'training_failures.csv')
+    row = pd.DataFrame([{
+        'TrainFileName': train_filename or '',
+        'ModelType': model_name or '',
+        'ColumnName': column_name or '',
+        'Stage': stage,
+        'ErrorType': type(exc).__name__,
+        'ErrorMessage': str(exc)[:500],
+        'TracebackTail': short_tb[:1000],
+    }])
+    header = not os.path.exists(failures_path)
+    row.to_csv(failures_path, mode='a', index=False, header=header)
+    print(f"[FAILURE] {train_filename} / {model_name} / {column_name} @ {stage}: "
+          f"{type(exc).__name__}: {exc}")
 #==============================================================================
 #==============================================================================
 def get_model(model_name, best_params={}, input_shape=20):
@@ -51,6 +77,15 @@ def get_model(model_name, best_params={}, input_shape=20):
         return LGBMClassifier(**best_params) if best_params else LGBMClassifier()
     elif model_name == 'lgbmregressor':
         return LGBMRegressor(**best_params) if best_params else LGBMRegressor()
+    elif model_name == 'rfregressor':
+        return RandomForestRegressor(**best_params) if best_params else RandomForestRegressor()
+    elif model_name == 'xgbregressor':
+        from xgboost import XGBRegressor
+        return XGBRegressor(**best_params) if best_params else XGBRegressor()
+    elif model_name == 'catboostregressor':
+        return CatBoostRegressor(silent=True, **best_params) if best_params else CatBoostRegressor(silent=True)
+    elif model_name == 'ridge':
+        return Ridge(**best_params) if best_params else Ridge()
     elif model_name == 'catboost':
         return CatBoostClassifier(silent=True, **best_params) if best_params else CatBoostClassifier(silent=True)
     elif model_name == 'tf_ff':
@@ -70,6 +105,153 @@ def train_model(model, X_train, y_train):
     return model
 #==============================================================================
 #==============================================================================
+def _resolve_parallel_settings(config):
+    """Resolve parallel_workers and optuna_n_jobs, honoring 'auto' as:
+        budget = cpu_count - max(2, cpu_count // 8)
+        parallel_workers (auto) = max(1, cpu_count // 2)
+        optuna_n_jobs (auto)    = max(1, budget // parallel_workers)
+    Returns (parallel_workers, optuna_n_jobs, parallel_train_enabled, pin_threads, skip_tf).
+    """
+    cpu = max(1, os.cpu_count() or 1)
+    reserve = max(2, cpu // 8)
+    budget = max(1, cpu - reserve)
+
+    pw_cfg = config.get('parallel_workers', 'auto')
+    if isinstance(pw_cfg, str) and pw_cfg.lower() == 'auto':
+        parallel_workers = max(1, cpu // 2)
+    else:
+        parallel_workers = max(1, int(pw_cfg))
+
+    onj_cfg = config.get('optuna_n_jobs', 'auto')
+    if isinstance(onj_cfg, str) and onj_cfg.lower() == 'auto':
+        optuna_n_jobs = max(1, budget // parallel_workers)
+    else:
+        optuna_n_jobs = max(1, int(onj_cfg))
+
+    parallel_train_enabled = str(config.get('parallel_train', 'N')).lower() == 'y'
+    pin_threads = bool(config.get('parallel_pin_threads', True))
+    skip_tf = bool(config.get('parallel_skip_tf', True))
+    return parallel_workers, optuna_n_jobs, parallel_train_enabled, pin_threads, skip_tf
+
+
+def _train_one_combo_worker(args):
+    """Top-level worker that trains a single (train_path, model, column) combo.
+
+    Returns a dict {'status': 'ok'|'fail', 'combo': str, 'experiment_results': dict?, 'error': str?}.
+    Must stay top-level so it pickles for ProcessPoolExecutor (spawn on Windows).
+    Failures are logged to {RunFolderName}/training_failures.csv inside the worker.
+    """
+    import os as _os
+    # Pin BLAS/OMP/MKL threads BEFORE numpy/sklearn imports inside the child.
+    if args.get('pin_threads', True):
+        for var in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS",
+                    "NUMEXPR_NUM_THREADS", "VECLIB_MAXIMUM_THREADS"):
+            _os.environ[var] = "1"
+
+    import numpy as _np
+    from data_utils import load_data
+    from model_utils import (
+        get_model as _get_model,
+        train_model as _train_model,
+        cross_validate_and_save_models as _cv_save,
+        train_and_save_final_model as _final_fit,
+        bayesian_hyperparameter_search as _bayes_hpo,
+        _log_training_failure as _log_fail,
+    )
+    from eval_utils import evaluate_model as _eval_model
+
+    config = args['config']
+    RunFolderName = args['RunFolderName']
+    train_path = args['train_path']
+    train_filename = args['train_filename']
+    model_name_i = args['model_name']
+    column_names_j = args['column_name']
+    optuna_n_jobs = args['optuna_n_jobs']
+
+    label_column_train = config['label_column_train']
+    nrows_train = config['nrows_train']
+    hyperparameters_tuning = config['hyperparameters_tuning']
+    hyperparameters = config.get('hyperparameters', {})
+    Nfold = config['Nfold']
+    regressor_models = config.get('regressor_models', [])
+    regression_column_train = config.get('regression_column_train', []) or []
+    combo_id = f"{train_filename}/{model_name_i}/{column_names_j}"
+
+    try:
+        is_regressor = model_name_i in regressor_models
+        X_train, Y_train = load_data(train_path, [column_names_j], label_column_train, nrows_train)
+        Y_train_binary = _np.stack(Y_train.iloc[:, 0])
+        X_train_array = _np.stack(X_train[column_names_j])
+
+        if is_regressor:
+            _, Y_train_cont_df = load_data(train_path, [column_names_j], regression_column_train, nrows_train)
+            Y_train_array = _np.stack(Y_train_cont_df.iloc[:, 0]).astype(float)
+            Y_eval_array = Y_train_binary
+        else:
+            Y_train_array = Y_train_binary
+            Y_eval_array = Y_train_binary
+            unique_labels = _np.unique(Y_train_array)
+            if len(unique_labels) < 2:
+                raise ValueError(f"Only one class present in y_train ({unique_labels.tolist()}).")
+
+        model_subfolder = _os.path.join(RunFolderName, f"{train_filename}_{model_name_i}_{column_names_j}")
+        _os.makedirs(model_subfolder, exist_ok=True)
+
+        # HPO
+        hpo_mode = str(hyperparameters_tuning).lower()
+        if hpo_mode in ('y', 'bayesian'):
+            best_params = _bayes_hpo(model_name_i, X_train_array, Y_train_array)
+        elif hpo_mode == 'optuna':
+            from hpo_utils import optuna_hyperparameter_search, load_cv_splits
+            cv_splits = load_cv_splits(RunFolderName)
+            storage_path = _os.path.join(RunFolderName, 'HPO', f'{model_name_i}_{column_names_j}.db')
+            best_params, _ = optuna_hyperparameter_search(
+                model_name=model_name_i, X=X_train_array, y=Y_train_array,
+                cv_splits=cv_splits, get_model=_get_model, train_model=_train_model,
+                n_trials=int(config.get('optuna_n_trials', 30)),
+                metric=str(config.get('optuna_metric', 'area_hits_at_k')),
+                k=int(config.get('optuna_K', 100)),
+                n_jobs=int(optuna_n_jobs),
+                storage_path=storage_path,
+                study_name=f"hpo_{model_name_i}_{column_names_j}",
+                y_eval=Y_eval_array,
+            )
+        elif hpo_mode in ('n', 'none', 'no'):
+            best_params = hyperparameters.get(model_name_i, {})
+        else:
+            raise ValueError(
+                f"hyperparameters_tuning must be 'none', 'bayesian', or 'optuna'; got {hyperparameters_tuning!r}"
+            )
+
+        avg_metrics = _cv_save(
+            config, X_train_array=X_train_array, Y_train_array=Y_train_array,
+            model_name=model_name_i, model_subfolder=model_subfolder, Nfold=Nfold,
+            get_model=_get_model, train_model=_train_model, evaluate_model=_eval_model,
+            best_params=best_params, train_path=train_path, train_filename=train_filename,
+            column_name=column_names_j, Y_eval_array=Y_eval_array,
+        )
+        _final_fit(config, X_train_array, Y_train_array, model_name_i,
+                   model_subfolder, _get_model, _train_model, best_params)
+
+        experiment_results = config.copy()
+        experiment_results["train_path"] = train_path
+        experiment_results["TrainFileName"] = train_filename
+        experiment_results["ModelType"] = model_name_i
+        experiment_results["ColumnName"] = column_names_j
+        experiment_results["ModelPath"] = model_subfolder
+        experiment_results["UsedHyperParameters"] = best_params
+        for key, value in avg_metrics.items():
+            experiment_results[f"CV_{key}"] = value
+
+        return {'status': 'ok', 'combo': combo_id, 'experiment_results': experiment_results}
+    except (KeyboardInterrupt, SystemExit):
+        raise
+    except Exception as exc:
+        _log_fail(RunFolderName, train_filename, model_name_i, column_names_j,
+                  stage='train_pipeline', exc=exc)
+        return {'status': 'fail', 'combo': combo_id, 'error': f"{type(exc).__name__}: {exc}"}
+
+
 def train_pipeline(config,
                    RunFolderName,
                    load_data,
@@ -91,10 +273,86 @@ def train_pipeline(config,
     hyperparameters = config.get('hyperparameters', {})
     Nfold = config['Nfold']
     feature_fusion_method = config['feature_fusion_method']
+    regressor_models = config.get('regressor_models', [])
+    regression_column_train = config.get('regression_column_train', []) or []
 
     if Train.lower() != 'y':
         return
 
+    # Resolve parallel settings (auto formula or explicit ints).
+    parallel_workers, optuna_n_jobs_resolved, parallel_train_enabled, pin_threads, skip_tf = (
+        _resolve_parallel_settings(config)
+    )
+    # Make the resolved value visible to anything else that reads config.
+    config['optuna_n_jobs'] = optuna_n_jobs_resolved
+
+    # Parallel training is unsupported with feature fusion (the fused X_train
+    # would have to be shared across processes; skip rather than refactor).
+    fusion_active = feature_fusion_method not in ('None', ['None'], [])
+    if parallel_train_enabled and fusion_active:
+        warnings.warn(
+            "parallel_train='Y' is unsupported with feature_fusion_method != 'None'; "
+            "falling back to serial training."
+        )
+        parallel_train_enabled = False
+    if parallel_train_enabled and parallel_workers <= 1:
+        # Pool of size 1 = serial; just take the serial path for clarity.
+        parallel_train_enabled = False
+
+    print(f"Train mode: {'parallel' if parallel_train_enabled else 'serial'}; "
+          f"workers={parallel_workers}, optuna_n_jobs={optuna_n_jobs_resolved}")
+
+    if parallel_train_enabled:
+        # ---- Parallel path: ProcessPoolExecutor over (model, column) combos. ----
+        from concurrent.futures import ProcessPoolExecutor, as_completed
+        tf_models_set = set(config.get('tf_models', []))
+        all_combos = []
+        for train_path in train_paths:
+            train_filename = os.path.basename(train_path).split('.')[0]
+            for model_name_i in model_names:
+                for column_names_j in column_names:
+                    all_combos.append({
+                        'config': config,
+                        'RunFolderName': RunFolderName,
+                        'train_path': train_path,
+                        'train_filename': train_filename,
+                        'model_name': model_name_i,
+                        'column_name': column_names_j,
+                        'optuna_n_jobs': optuna_n_jobs_resolved,
+                        'pin_threads': pin_threads,
+                    })
+        parallel_combos = [c for c in all_combos if not (skip_tf and c['model_name'] in tf_models_set)]
+        serial_combos = [c for c in all_combos if skip_tf and c['model_name'] in tf_models_set]
+
+        completed_results = []
+        if parallel_combos:
+            n_pool = min(parallel_workers, len(parallel_combos))
+            print(f"Dispatching {len(parallel_combos)} combo(s) to {n_pool} worker(s)...")
+            with ProcessPoolExecutor(max_workers=n_pool) as pool:
+                futures = [pool.submit(_train_one_combo_worker, args) for args in parallel_combos]
+                for future in as_completed(futures):
+                    result = future.result()
+                    if result['status'] == 'ok':
+                        completed_results.append(result['experiment_results'])
+                        print(f"[OK] {result['combo']}")
+                    else:
+                        print(f"[FAIL] {result['combo']}: {result.get('error', '?')}")
+        # TF combos run serially (single-GPU contention + thread caps would hurt them).
+        for args in serial_combos:
+            args = {**args, 'pin_threads': False}
+            result = _train_one_combo_worker(args)
+            if result['status'] == 'ok':
+                completed_results.append(result['experiment_results'])
+                print(f"[OK serial] {result['combo']}")
+            else:
+                print(f"[FAIL serial] {result['combo']}: {result.get('error', '?')}")
+
+        # Single-writer pass into results.csv (avoids CSV race in workers).
+        for er in completed_results:
+            write_results_csv(er, RunFolderName)
+        return
+
+    # ---- Serial path (unchanged) ----
     for train_path in train_paths:
         print(train_path)
         # Extract the filename without extension for naming
@@ -111,97 +369,131 @@ def train_pipeline(config,
 
         for model_name_i in model_names:
             for column_names_j in total_columns:
-                
-                # Train data
-                if config['feature_fusion_method'] == "None":
-                    X_train, Y_train = load_data(train_path, [column_names_j], label_column_train, nrows_train)
-                    #Y_train_array = np.stack(Y_train.iloc[:, 0])
-                    #X_train_array = np.stack(X_train[column_names_j])
-                Y_train_array = np.stack(Y_train.iloc[:, 0])
-                X_train_array = np.stack(X_train[column_names_j])
-                #print(X_train_array.shape[1])
-                
-                # Model subfolder includes train filename
-                model_subfolder = os.path.join(RunFolderName, f"{train_filename}_{model_name_i}_{column_names_j}")
-                print(model_subfolder)
-                os.makedirs(model_subfolder, exist_ok=True)
+                # Per-(model, column) failures (HPO crash, single-class data, fit
+                # error, etc.) are caught and logged so the rest of the grid
+                # continues to run instead of taking down the whole pipeline.
+                try:
+                    is_regressor = model_name_i in regressor_models
 
-                # === Hyperparameter Tuning ===
-                # 'none' -> use config['hyperparameters'][model_name_i] as-is.
-                # 'bayesian' -> existing scikit-optimize BayesSearchCV (legacy).
-                # 'optuna' -> Optuna TPE search using saved CV folds (hpo_utils.py).
-                hpo_mode = str(hyperparameters_tuning).lower()
-                if hpo_mode in ('y', 'bayesian'):
-                    best_params = bayesian_hyperparameter_search(model_name_i, X_train_array, Y_train_array)
-                elif hpo_mode == 'optuna':
-                    from hpo_utils import optuna_hyperparameter_search, load_cv_splits
-                    cv_splits = load_cv_splits(RunFolderName)
-                    storage_path = os.path.join(
-                        RunFolderName, 'HPO', f'{model_name_i}_{column_names_j}.db'
-                    )
-                    best_params, _ = optuna_hyperparameter_search(
+                    # Train data
+                    if config['feature_fusion_method'] == "None":
+                        X_train, Y_train = load_data(train_path, [column_names_j], label_column_train, nrows_train)
+                    Y_train_binary = np.stack(Y_train.iloc[:, 0])
+                    X_train_array = np.stack(X_train[column_names_j])
+
+                    if is_regressor:
+                        # Regressor: train on the continuous target; ranking metrics
+                        # in CV still evaluate against the binary LABEL.
+                        _, Y_train_cont_df = load_data(
+                            train_path, [column_names_j], regression_column_train, nrows_train,
+                        )
+                        Y_train_array = np.stack(Y_train_cont_df.iloc[:, 0]).astype(float)
+                        Y_eval_array = Y_train_binary  # binary labels for ranking metrics
+                    else:
+                        Y_train_array = Y_train_binary
+                        Y_eval_array = Y_train_binary
+
+                    # Pre-flight: skip degenerate single-class training sets for
+                    # classifiers. Regressors with continuous targets have no class
+                    # concept, so skip this check for them.
+                    if not is_regressor:
+                        unique_labels = np.unique(Y_train_array)
+                        if len(unique_labels) < 2:
+                            raise ValueError(
+                                f"Only one class present in y_train ({unique_labels.tolist()})."
+                            )
+
+                    # Model subfolder includes train filename
+                    model_subfolder = os.path.join(RunFolderName, f"{train_filename}_{model_name_i}_{column_names_j}")
+                    print(model_subfolder)
+                    os.makedirs(model_subfolder, exist_ok=True)
+
+                    # === Hyperparameter Tuning ===
+                    # 'none' -> use config['hyperparameters'][model_name_i] as-is.
+                    # 'bayesian' -> existing scikit-optimize BayesSearchCV (legacy).
+                    # 'optuna' -> Optuna TPE search using saved CV folds (hpo_utils.py).
+                    hpo_mode = str(hyperparameters_tuning).lower()
+                    if hpo_mode in ('y', 'bayesian'):
+                        best_params = bayesian_hyperparameter_search(model_name_i, X_train_array, Y_train_array)
+                    elif hpo_mode == 'optuna':
+                        from hpo_utils import optuna_hyperparameter_search, load_cv_splits
+                        cv_splits = load_cv_splits(RunFolderName)
+                        storage_path = os.path.join(
+                            RunFolderName, 'HPO', f'{model_name_i}_{column_names_j}.db'
+                        )
+                        best_params, _ = optuna_hyperparameter_search(
+                            model_name=model_name_i,
+                            X=X_train_array,
+                            y=Y_train_array,
+                            cv_splits=cv_splits,
+                            get_model=get_model,
+                            train_model=train_model,
+                            n_trials=int(config.get('optuna_n_trials', 30)),
+                            metric=str(config.get('optuna_metric', 'area_hits_at_k')),
+                            k=int(config.get('optuna_K', 100)),
+                            n_jobs=int(config.get('optuna_n_jobs', 1)),
+                            storage_path=storage_path,
+                            study_name=f"hpo_{model_name_i}_{column_names_j}",
+                            y_eval=Y_eval_array,
+                        )
+                    elif hpo_mode in ('n', 'none', 'no'):
+                        best_params = hyperparameters.get(model_name_i, {})
+                    else:
+                        raise ValueError(
+                            f"hyperparameters_tuning must be 'none', 'bayesian', or 'optuna'; got {hyperparameters_tuning!r}"
+                        )
+
+                    # === Cross Validation ===
+                    avg_metrics = cross_validate_and_save_models(
+                        config,
+                        X_train_array=X_train_array,
+                        Y_train_array=Y_train_array,
                         model_name=model_name_i,
-                        X=X_train_array,
-                        y=Y_train_array,
-                        cv_splits=cv_splits,
+                        model_subfolder=model_subfolder,
+                        Nfold=Nfold,
                         get_model=get_model,
                         train_model=train_model,
-                        n_trials=int(config.get('optuna_n_trials', 30)),
-                        metric=str(config.get('optuna_metric', 'area_hits_at_k')),
-                        k=int(config.get('optuna_K', 100)),
-                        n_jobs=int(config.get('optuna_n_jobs', 1)),
-                        storage_path=storage_path,
-                        study_name=f"hpo_{model_name_i}_{column_names_j}",
-                    )
-                elif hpo_mode in ('n', 'none', 'no'):
-                    best_params = hyperparameters.get(model_name_i, {})
-                else:
-                    raise ValueError(
-                        f"hyperparameters_tuning must be 'none', 'bayesian', or 'optuna'; got {hyperparameters_tuning!r}"
+                        evaluate_model=evaluate_model,
+                        best_params=best_params,
+                        train_path=train_path,
+                        train_filename=train_filename,
+                        column_name=column_names_j,
+                        Y_eval_array=Y_eval_array,
                     )
 
-                # === Cross Validation ===
-                avg_metrics = cross_validate_and_save_models(
-                    config,
-                    X_train_array=X_train_array,
-                    Y_train_array=Y_train_array,
-                    model_name=model_name_i,
-                    model_subfolder=model_subfolder,
-                    Nfold=Nfold,
-                    get_model=get_model,
-                    train_model=train_model,
-                    evaluate_model=evaluate_model,
-                    best_params=best_params,
-                    train_path=train_path,
-                    train_filename=train_filename,
-                    column_name=column_names_j,
-                )
+                    # === Final Model Training ===
+                    train_and_save_final_model(
+                        config,
+                        X_train_array,
+                        Y_train_array,
+                        model_name_i,
+                        model_subfolder,
+                        get_model,
+                        train_model,
+                        best_params
+                    )
 
-                # === Final Model Training ===
-                train_and_save_final_model(
-                    config,
-                    X_train_array,
-                    Y_train_array,
-                    model_name_i,
-                    model_subfolder,
-                    get_model,
-                    train_model,
-                    best_params
-                )
+                    # === Save Results ===
+                    experiment_results = config.copy()
+                    experiment_results["train_path"] = train_path
+                    experiment_results["TrainFileName"] = train_filename
+                    experiment_results["ModelType"] = model_name_i
+                    experiment_results["ColumnName"] = column_names_j
+                    experiment_results["ModelPath"] = model_subfolder
+                    experiment_results["UsedHyperParameters"] = best_params
 
-                # === Save Results ===
-                experiment_results = config.copy()
-                experiment_results["train_path"] = train_path
-                experiment_results["TrainFileName"] = train_filename
-                experiment_results["ModelType"] = model_name_i
-                experiment_results["ColumnName"] = column_names_j
-                experiment_results["ModelPath"] = model_subfolder
-                experiment_results["UsedHyperParameters"] = best_params
+                    for key, value in avg_metrics.items():
+                        experiment_results[f"CV_{key}"] = value
 
-                for key, value in avg_metrics.items():
-                    experiment_results[f"CV_{key}"] = value
-
-                write_results_csv(experiment_results, RunFolderName)
+                    write_results_csv(experiment_results, RunFolderName)
+                except (KeyboardInterrupt, SystemExit):
+                    raise
+                except Exception as exc:
+                    _log_training_failure(
+                        RunFolderName, train_filename, model_name_i, column_names_j,
+                        stage='train_pipeline', exc=exc,
+                    )
+                    continue
 
 #==============================================================================
 #==============================================================================
@@ -589,7 +881,8 @@ def plot_cv_folds_umap(config, RunFolderName):
 #==============================================================================
 #==============================================================================
 def cross_validate_and_save_models(config, X_train_array, Y_train_array, model_name, model_subfolder, Nfold, get_model, train_model, evaluate_model, best_params,
-                                   train_path=None, train_filename=None, column_name=None):
+                                   train_path=None, train_filename=None, column_name=None,
+                                   Y_eval_array=None):
     """
     Perform cross-validation using pre-built fold splits, save fold models, and return average metrics.
 
@@ -599,9 +892,19 @@ def cross_validate_and_save_models(config, X_train_array, Y_train_array, model_n
     Per-fold and mean-across-folds prediction parquets are written to
     {RunFolderName}/CVResults/, named with train_filename, model_name and
     column_name (mirroring the test-pipeline naming).
+
+    For regression models, Y_train_array carries the continuous target used to
+    fit the model, while Y_eval_array (the binary LABEL) is used to compute
+    ranking metrics in CV. For classifiers, Y_eval_array defaults to Y_train_array.
     """
     tf_models = config['tf_models']
     tf_dnn = True if model_name in tf_models else False
+    regressor_models = config.get('regressor_models', [])
+    is_regressor = model_name in regressor_models
+
+    # Default eval target: same as training target (classifier behaviour).
+    if Y_eval_array is None:
+        Y_eval_array = Y_train_array
 
     RunFolderName = os.path.dirname(model_subfolder)
     cv_splits_path = os.path.join(RunFolderName, 'CVFolds', 'cv_splits.pkl')
@@ -640,56 +943,83 @@ def cross_validate_and_save_models(config, X_train_array, Y_train_array, model_n
         cluster_fold_train_neg_ratio = None
 
     for fold_idx, (train_idx, test_idx) in enumerate(cv_splits):
-        CrossVal_data_train, CrossVal_data_test = X_train_array[train_idx], X_train_array[test_idx]
-        CrossVal_label_train, CrossVal_label_test = Y_train_array[train_idx], Y_train_array[test_idx]
+        # Per-fold failures (single-class fold, fit error, NaN loss, save error)
+        # are logged and skipped so a single bad fold doesn't take down the whole
+        # CV. If every fold ends up failing, the function raises at the end.
+        try:
+            CrossVal_data_train, CrossVal_data_test = X_train_array[train_idx], X_train_array[test_idx]
+            CrossVal_label_train, CrossVal_label_test = Y_train_array[train_idx], Y_train_array[test_idx]
+            # Binary labels for ranking-metric evaluation. For classifiers this equals
+            # CrossVal_label_test; for regressors it is the binary LABEL.
+            CrossVal_eval_test = Y_eval_array[test_idx]
 
-        if cluster_fold_train_neg_ratio is not None:
-            rng = np.random.default_rng(42 + fold_idx)
-            pos_local_idx = np.where(CrossVal_label_train == 1)[0]
-            neg_local_idx = np.where(CrossVal_label_train == 0)[0]
-            n_pos = len(pos_local_idx)
-            n_neg_target = int(cluster_fold_train_neg_ratio * n_pos)
-            if len(neg_local_idx) > n_neg_target:
-                sampled_neg_local_idx = rng.choice(neg_local_idx, size=n_neg_target, replace=False)
-                keep_local_idx = np.concatenate([pos_local_idx, sampled_neg_local_idx])
-                rng.shuffle(keep_local_idx)
-                CrossVal_data_train = CrossVal_data_train[keep_local_idx]
-                CrossVal_label_train = CrossVal_label_train[keep_local_idx]
+            # Per-fold negative downsampling only applies to binary classifiers; the
+            # logic relies on a 0/1 label. Skip silently for regressors.
+            if cluster_fold_train_neg_ratio is not None and not is_regressor:
+                rng = np.random.default_rng(42 + fold_idx)
+                pos_local_idx = np.where(Y_eval_array[train_idx] == 1)[0]
+                neg_local_idx = np.where(Y_eval_array[train_idx] == 0)[0]
+                n_pos = len(pos_local_idx)
+                n_neg_target = int(cluster_fold_train_neg_ratio * n_pos)
+                if len(neg_local_idx) > n_neg_target:
+                    sampled_neg_local_idx = rng.choice(neg_local_idx, size=n_neg_target, replace=False)
+                    keep_local_idx = np.concatenate([pos_local_idx, sampled_neg_local_idx])
+                    rng.shuffle(keep_local_idx)
+                    CrossVal_data_train = CrossVal_data_train[keep_local_idx]
+                    CrossVal_label_train = CrossVal_label_train[keep_local_idx]
 
-        model_fold = get_model(model_name , best_params, input_shape)
-        model_fold = train_model(model_fold, CrossVal_data_train, CrossVal_label_train)
-        
-        # Save model for this fold           
-        fold_model_path = os.path.join(model_subfolder, f"model_fold{fold_idx + 1}")    
-        if tf_dnn:
-            fold_model_path = fold_model_path + ".h5"
-            model_fold.save(fold_model_path)  # TensorFlow model
-        else:
-            fold_model_path = fold_model_path + ".pkl"
-            with open(fold_model_path , 'wb') as f:
-                pickle.dump(model_fold, f)
+            # Pre-flight: skip degenerate folds before fit. Only meaningful for classifiers.
+            if not is_regressor and len(np.unique(CrossVal_label_train)) < 2:
+                raise ValueError(
+                    f"Fold {fold_idx + 1} train set has only one class; skipping."
+                )
 
+            model_fold = get_model(model_name , best_params, input_shape)
+            model_fold = train_model(model_fold, CrossVal_data_train, CrossVal_label_train)
 
-        metrics, ypred_i, yprob_i = evaluate_model(
-            fold_model_path, CrossVal_data_test, CrossVal_label_test,
-            area_hits_K=int(config.get('area_hits_K', 500)),
-        )
-        fold_metrics.append(metrics)
+            # Save model for this fold
+            fold_model_path = os.path.join(model_subfolder, f"model_fold{fold_idx + 1}")
+            if tf_dnn:
+                fold_model_path = fold_model_path + ".h5"
+                model_fold.save(fold_model_path)  # TensorFlow model
+            else:
+                fold_model_path = fold_model_path + ".pkl"
+                with open(fold_model_path , 'wb') as f:
+                    pickle.dump(model_fold, f)
 
-        # Per-fold prediction parquets (sorted + unsorted) under CVResults/.
-        if df_meta_train is not None and train_filename is not None and column_name is not None:
-            fold_meta = df_meta_train.iloc[test_idx].reset_index(drop=True).copy()
-            fold_meta["y_pred"] = ypred_i
-            fold_meta["y_prob"] = yprob_i
+            # For regressors: evaluate ranking metrics against the binary LABEL,
+            # and pass the continuous target so RMSE/MAE/R^2 are computed too.
+            regression_target = CrossVal_label_test if is_regressor else None
+            metrics, ypred_i, yprob_i = evaluate_model(
+                fold_model_path, CrossVal_data_test, CrossVal_eval_test,
+                area_hits_K=int(config.get('area_hits_K', 500)),
+                regression_threshold=config.get('regression_threshold', 'median'),
+                regression_target=regression_target,
+            )
+            fold_metrics.append(metrics)
 
-            base = f"{train_filename}_{model_name}_{column_name}_fold{fold_idx + 1}"
-            out_path = os.path.join(cv_results_dir, f"{base}_predictions.parquet")
-            sorted_path = os.path.join(cv_results_dir, f"{base}_predictions_sorted.parquet")
-            fold_meta.to_parquet(out_path, index=False)
-            fold_meta.sort_values("y_prob", ascending=False).to_parquet(sorted_path, index=False)
+            # Per-fold prediction parquets (sorted + unsorted) under CVResults/.
+            if df_meta_train is not None and train_filename is not None and column_name is not None:
+                fold_meta = df_meta_train.iloc[test_idx].reset_index(drop=True).copy()
+                fold_meta["y_pred"] = ypred_i
+                fold_meta["y_prob"] = yprob_i
 
-            sum_prob[test_idx] += yprob_i
-            count_prob[test_idx] += 1
+                base = f"{train_filename}_{model_name}_{column_name}_fold{fold_idx + 1}"
+                out_path = os.path.join(cv_results_dir, f"{base}_predictions.parquet")
+                sorted_path = os.path.join(cv_results_dir, f"{base}_predictions_sorted.parquet")
+                fold_meta.to_parquet(out_path, index=False)
+                fold_meta.sort_values("y_prob", ascending=False).to_parquet(sorted_path, index=False)
+
+                sum_prob[test_idx] += yprob_i
+                count_prob[test_idx] += 1
+        except (KeyboardInterrupt, SystemExit):
+            raise
+        except Exception as exc:
+            _log_training_failure(
+                RunFolderName, train_filename or '', model_name, column_name or '',
+                stage=f'cv_fold_{fold_idx + 1}', exc=exc,
+            )
+            continue
 
     # Mean-across-folds prediction parquet (one row per sample that appeared
     # in at least one test fold; y_prob is averaged over the folds it appeared in).
@@ -709,6 +1039,13 @@ def cross_validate_and_save_models(config, X_train_array, Y_train_array, model_n
             sorted_path = os.path.join(cv_results_dir, f"{base}_predictions_sorted.parquet")
             mean_df.to_parquet(out_path, index=False)
             mean_df.sort_values("y_prob", ascending=False).to_parquet(sorted_path, index=False)
+
+    # If every fold failed (all errors logged to training_failures.csv), we
+    # have nothing to average — surface that to the caller's try/except.
+    if not fold_metrics:
+        raise RuntimeError(
+            f"All CV folds failed for {model_name}/{column_name}; see training_failures.csv."
+        )
 
     # Average metrics across folds
     avg_metrics = {metric: np.mean([fold[metric] for fold in fold_metrics]) for metric in fold_metrics[0]}
@@ -888,6 +1225,43 @@ def bayesian_hyperparameter_search(
             'learning_rate': (0.01, 0.3, 'log-uniform'),
             'depth': (4, 10),
             'l2_leaf_reg': (1.0, 30.0, 'log-uniform'),
+        }
+    elif model_name == 'rfregressor':
+        model = RandomForestRegressor(random_state=random_state, n_jobs=1)
+        param_space = {
+            'n_estimators': (100, 800),
+            'max_depth': (5, 40),
+            'min_samples_split': (2, 20),
+            'min_samples_leaf': (1, 10),
+            'max_features': ['sqrt', 'log2', 0.5],
+        }
+    elif model_name == 'xgbregressor':
+        from xgboost import XGBRegressor
+        model = XGBRegressor(random_state=random_state, n_jobs=1, verbosity=0)
+        param_space = {
+            'n_estimators': (200, 5000),
+            'learning_rate': (0.005, 0.3, 'log-uniform'),
+            'max_depth': (3, 12),
+            'min_child_weight': (1, 20),
+            'subsample': (0.5, 1.0, 'uniform'),
+            'colsample_bytree': (0.3, 1.0, 'uniform'),
+            'reg_alpha': (1e-4, 20.0, 'log-uniform'),
+            'reg_lambda': (1e-4, 50.0, 'log-uniform'),
+        }
+    elif model_name == 'catboostregressor':
+        model = CatBoostRegressor(silent=True, random_seed=random_state)
+        param_space = {
+            'iterations': (200, 2000),
+            'learning_rate': (0.01, 0.3, 'log-uniform'),
+            'depth': (4, 10),
+            'l2_leaf_reg': (1.0, 30.0, 'log-uniform'),
+        }
+    elif model_name == 'ridge':
+        model = Ridge(random_state=random_state)
+        param_space = {
+            'alpha': (1e-3, 100.0, 'log-uniform'),
+            'fit_intercept': [True, False],
+            'solver': ['auto', 'svd', 'cholesky', 'lsqr', 'sag', 'saga'],
         }
     elif model_name in ('tf_ff', 'tf_cnn1D', 'lgbmregressor'):
         raise NotImplementedError(

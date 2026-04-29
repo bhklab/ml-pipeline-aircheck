@@ -168,11 +168,16 @@ def validate_config(config_path):
         config['balance_ratios'] = [1, 2]
 
     # Validate Model Names (Required)
-    supported_models = ['rf', 'lr', 'svc', 'nb', 
-                        'dt', 'knn', 'gb', 'ada', 'bag', 'mlp', 'lgbm', 'catboost', 'tf_ff', 'tf_cnn1D', 'lgbmregressor']
-    tf_models=["tf_ff","tf_cnn1D"] 
+    supported_models = ['rf', 'lr', 'svc', 'nb',
+                        'dt', 'knn', 'gb', 'ada', 'bag', 'mlp', 'lgbm', 'catboost', 'tf_ff', 'tf_cnn1D',
+                        'lgbmregressor', 'rfregressor', 'xgbregressor', 'catboostregressor', 'ridge']
+    tf_models=["tf_ff","tf_cnn1D"]
     config['tf_models']= tf_models
-    
+    # Registry of regression-task models (continuous target). Keep in sync with
+    # the supported_models list above when adding new regressors.
+    regressor_models = ['lgbmregressor', 'rfregressor', 'xgbregressor', 'catboostregressor', 'ridge']
+    config['regressor_models'] = regressor_models
+
     if not isinstance(config.get('desired_models'), list):
         errors.append("desired_models must be a list.")
     else:
@@ -180,13 +185,41 @@ def validate_config(config_path):
             if model not in supported_models:
                 errors.append(f"Unsupported model: {model}")
 
+    # If any regressor is requested, the continuous target columns are required.
+    desired = config.get('desired_models', []) or []
+    if any(m in regressor_models for m in desired):
+        rc_train = config.get('regression_column_train')
+        rc_test = config.get('regression_column_test')
+        if not isinstance(rc_train, list) or not rc_train:
+            errors.append(
+                "regression_column_train must be a non-empty list (e.g. [pIC50]) when "
+                f"desired_models contains a regressor ({[m for m in desired if m in regressor_models]})."
+            )
+        if not isinstance(rc_test, list) or not rc_test:
+            errors.append(
+                "regression_column_test must be a non-empty list (e.g. [pIC50]) when "
+                f"desired_models contains a regressor ({[m for m in desired if m in regressor_models]})."
+            )
+
+    # Default the regression threshold so it never trips downstream code on classifier-only runs.
+    rt = config.get('regression_threshold', 'median')
+    if isinstance(rt, str) and rt.lower() == 'median':
+        config['regression_threshold'] = 'median'
+    else:
+        try:
+            config['regression_threshold'] = float(rt)
+        except (TypeError, ValueError):
+            config['regression_threshold'] = 'median'
+
     # Validate Hyperparameters (Default: Empty Dict)
     if not isinstance(config.get('hyperparameters'), dict):
         config['hyperparameters'] = {}
 
-    # Validate Hyperparameter Tuning (Default: 'N')
-    if config.get('hyperparameters_tuning') not in ['Y', 'N']:
-        config['hyperparameters_tuning'] = 'N'
+    # Validate Hyperparameter Tuning (Default: 'none')
+    valid_tuning_modes = {'none', 'n', 'no', 'bayesian', 'optuna', 'y', 'yes'}
+    ht = config.get('hyperparameters_tuning')
+    if not isinstance(ht, str) or ht.lower() not in valid_tuning_modes:
+        config['hyperparameters_tuning'] = 'none'
 
     # Validate Cross-Validation (Default: 2)
     if not isinstance(config.get('Nfold'), int) or config['Nfold'] < 2:

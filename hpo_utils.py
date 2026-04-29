@@ -275,6 +275,54 @@ def suggest_params(trial, model_name):
             'silent': True,
         }
 
+    if model_name == 'rfregressor':
+        return {
+            'n_estimators': trial.suggest_int('n_estimators', 100, 800),
+            'max_depth': trial.suggest_categorical('max_depth', [None, 8, 16, 24, 40]),
+            'min_samples_split': trial.suggest_int('min_samples_split', 2, 20),
+            'min_samples_leaf': trial.suggest_int('min_samples_leaf', 1, 10),
+            'max_features': trial.suggest_categorical('max_features', ['sqrt', 'log2', 0.5]),
+            'bootstrap': trial.suggest_categorical('bootstrap', [True, False]),
+            'n_jobs': 1,
+            'random_state': 42,
+        }
+
+    if model_name == 'xgbregressor':
+        return {
+            'n_estimators': trial.suggest_int('n_estimators', 200, 5000),
+            'learning_rate': trial.suggest_float('learning_rate', 0.005, 0.3, log=True),
+            'max_depth': trial.suggest_int('max_depth', 3, 12),
+            'min_child_weight': trial.suggest_int('min_child_weight', 1, 20),
+            'subsample': trial.suggest_float('subsample', 0.5, 1.0),
+            'colsample_bytree': trial.suggest_float('colsample_bytree', 0.3, 1.0),
+            'reg_alpha': trial.suggest_float('reg_alpha', 1e-4, 20.0, log=True),
+            'reg_lambda': trial.suggest_float('reg_lambda', 1e-4, 50.0, log=True),
+            'gamma': trial.suggest_float('gamma', 1e-8, 5.0, log=True),
+            'verbosity': 0,
+            'n_jobs': 1,
+            'random_state': 42,
+        }
+
+    if model_name == 'catboostregressor':
+        return {
+            'iterations': trial.suggest_int('iterations', 200, 2000),
+            'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.3, log=True),
+            'depth': trial.suggest_int('depth', 4, 10),
+            'l2_leaf_reg': trial.suggest_float('l2_leaf_reg', 1.0, 30.0, log=True),
+            'random_seed': 42,
+            'silent': True,
+        }
+
+    if model_name == 'ridge':
+        return {
+            'alpha': trial.suggest_float('alpha', 1e-3, 100.0, log=True),
+            'fit_intercept': trial.suggest_categorical('fit_intercept', [True, False]),
+            'solver': trial.suggest_categorical(
+                'solver', ['auto', 'svd', 'cholesky', 'lsqr', 'sag', 'saga']
+            ),
+            'random_state': 42,
+        }
+
     if model_name == 'tf_ff':
         arch = trial.suggest_categorical('hidden_units', ['64', '128-64', '256-128-64'])
         return {
@@ -345,6 +393,7 @@ def optuna_hyperparameter_search(
     storage_path=None,
     study_name=None,
     random_state=42,
+    y_eval=None,
 ):
     """Run Optuna TPE search using the supplied CV splits.
 
@@ -353,8 +402,15 @@ def optuna_hyperparameter_search(
     performing trials at intermediate fold boundaries. If `storage_path` is
     given the study is persisted to SQLite (resumable across runs).
 
+    For regression models, pass `y` = continuous training target and
+    `y_eval` = binary LABEL — training uses `y`, ranking metrics score against
+    `y_eval`. For classifiers, omit `y_eval` (defaults to `y`).
+
     Returns: (best_params: dict, study: optuna.Study).
     """
+    # Default eval target = training target (classifier behaviour).
+    if y_eval is None:
+        y_eval = y
     n_samples = X.shape[0]
     max_idx = max(int(max(t.max(), s.max())) for t, s in cv_splits)
     if max_idx >= n_samples:
@@ -393,7 +449,8 @@ def optuna_hyperparameter_search(
         fold_scores = []
         for fold_idx, (tr_idx, te_idx) in enumerate(cv_splits):
             X_tr, X_te = X[tr_idx], X[te_idx]
-            y_tr, y_te = y[tr_idx], y[te_idx]
+            y_tr = y[tr_idx]            # training target (continuous for regressor, binary for classifier)
+            y_te = y_eval[te_idx]       # evaluation target (always binary for ranking metrics)
             try:
                 model = get_model(model_name, dict(params), input_shape)
                 model = train_model(model, X_tr, y_tr)

@@ -19,10 +19,27 @@ test_data: [ D:\0000-UHN\PGK2\ASMS\Data Shared by Mttheiu\TestFileWithAllAsmsPGK
 # desired_columns:  [ECFP4, ECFP6, FCFP4, FCFP6, TOPTOR, MACCS, RDK, AVALON, ATOMPAIR]           
 desired_columns: [ECFP4 , FCFP4]
 
+# Binary label columns (0/1) used by classifiers as the training target and by
+# every model (classifier OR regressor) as the ranking ground-truth at evaluation
+# time. Ranking metrics (HitsAt*, AreaHitsAtK, NDCG, BEDROC) are computed against
+# these LABEL columns regardless of model type.
 label_column_train: [LABEL]
 label_column_test: [LABEL]
 
-nrows_train: 'None' # integer or 'None' 
+# Continuous target columns for regression models (e.g. lgbmregressor).
+# REQUIRED when desired_models contains a regressor; classifiers ignore them
+# and train on label_column_train / label_column_test as before.
+regression_column_train: []   # e.g. [zscore, count]
+regression_column_test:  []   # e.g. [zscore, count]
+
+# How to binarize a regressor's continuous prediction into y_pred so threshold-
+# based metrics (F1, accuracy, ...) can be computed alongside classifier metrics.
+# 'median' = each test set's own median score (auto-adapts to the score scale).
+# A number (e.g. 0.5) = fixed cutoff. Has no effect on classifier rows or on
+# ranking metrics (HitsAt*, AreaHitsAtK, NDCG, BEDROC) which use the score directly.
+regression_threshold: 'median'
+
+nrows_train: 'None' # integer or 'None'
 nrows_test: 'None'
 
 # Note: selecting feature fusion makes the code so slow. Avoid it for big datasets!!
@@ -48,24 +65,38 @@ chemistry_filters: 'y' #  (N:for no, Y: for yes)
 
 # Model
 #==========================================================================
-# Supported models:
-# rf: Random Forest
-# lr: Logistic Regression
-# svc: Support Vector Classifier
-# nb: Gaussian Naive Bayes
-# dt: Decision Tree
-# knn: K-Nearest Neighbors
-# gb: Gradient Boosting
-# ada: AdaBoost
-# bag: Bagging Classifier
-# mlp: Multi-layer Perceptron
-# lgbm:
-# catboost:
-# tf_ff: tensorflow simple feed forward neural network
-# desired_models: [rf, lr, sgd, svc, nb, dt, knn, gb, ada, bag, mlp, lgbm, catboost, tf_ff, tf_cnn1D]
+# Supported models (classifiers train on label_column_train; regressors train on regression_column_train):
+# Classifiers:
+#   rf:        Random Forest classifier
+#   lr:        Logistic Regression
+#   sgd:       Stochastic Gradient Descent classifier (linear, log_loss for probabilities)
+#   svc:       Support Vector Classifier (RBF/linear, probability=True for predict_proba)
+#   nb:        Gaussian Naive Bayes
+#   dt:        Decision Tree classifier
+#   knn:       K-Nearest Neighbors classifier
+#   gb:        Gradient Boosting classifier (sklearn)
+#   ada:       AdaBoost classifier
+#   bag:       Bagging classifier (sklearn ensemble of base estimators)
+#   mlp:       Multi-Layer Perceptron classifier (sklearn)
+#   lgbm:      LightGBM gradient-boosted-tree classifier — fast, scales to large fingerprint datasets, supports class imbalance via scale_pos_weight
+#   catboost:  CatBoost gradient-boosted-tree classifier — handles categorical features natively, supports class imbalance via auto_class_weights
+#   tf_ff:     TensorFlow/Keras simple feed-forward neural network (configurable hidden_units)
+#   tf_cnn1D:  TensorFlow/Keras 1-D CNN (configurable conv_layers + ff_layers, e.g. for ECFP-bit sequences)
+# Regressors (require regression_column_train / regression_column_test in config):
+#   lgbmregressor:     LightGBM gradient-boosted-tree regressor — predicts a continuous target; the pipeline still
+#                      ranks molecules by the predicted score and reports the same ranking metrics as classifiers,
+#                      plus regression metrics (RMSE / MAE / R2). Score is binarized via regression_threshold to compute
+#                      threshold-based metrics (F1, accuracy, ...).
+#   rfregressor:       Random Forest regressor — bagged-tree baseline, very different bias/variance profile from boosted trees.
+#   xgbregressor:      XGBoost regressor — alternative gradient booster (different regularization & split logic than LightGBM).
+#   catboostregressor: CatBoost regressor — ordered boosting + symmetric trees, robust out-of-the-box.
+#   ridge:             Ridge linear regression — cheap, interpretable linear baseline (sanity-check for the tree-based regressors).
+# desired_models: [rf, lr, sgd, svc, nb, dt, knn, gb, ada, bag, mlp, lgbm, catboost, tf_ff, tf_cnn1D,
+#                  lgbmregressor, rfregressor, xgbregressor, catboostregressor, ridge]
 
 desired_models: [lgbm]
 #desired_models: [lgbmregressor]
+#desired_models: [lgbmregressor, rfregressor, xgbregressor, catboostregressor, ridge]
 
 # Models' Hyperparameters tuning
 # Options:
@@ -79,7 +110,25 @@ hyperparameters_tuning: 'none'
 optuna_n_trials: 30                  # Trials per model. 30-50 is a sane starting point; raise for harder spaces.
 optuna_metric: 'area_hits_at_k'      # 'f1' | 'roc_auc' | 'average_precision' | 'precision' | 'precision_at_K' | 'hits_at_K' | 'area_hits_at_k' | 'area_hits_at_k_norm'
 optuna_K: 100                        # K used by ranking metrics when the metric name doesn't carry an explicit K (area_hits_at_k, area_hits_at_k_norm). Inline forms like 'precision_at_50' override this.
-optuna_n_jobs: 1                     # Parallel trials. Keep 1 for tensorflow models; >1 OK for sklearn/lgbm/catboost.
+optuna_n_jobs: 'auto'                # int or 'auto'. 'auto' = max(1, (cpu_count - reserve) // parallel_workers); reserve = max(2, cpu_count // 8). Forced to 1 internally for TF models.
+
+# Parallel training (across (model, column) combos)
+#==========================================================================
+# parallel_train: 'N' = serial (default; safe on low-resource machines).
+# parallel_train: 'Y' = dispatch combos to a ProcessPoolExecutor.
+# parallel_workers: int or 'auto' = max(1, cpu_count // 2).
+# Auto budgeting:  budget = cpu_count - max(2, cpu_count//8); when both knobs are 'auto',
+#   parallel_workers ≈ 50% of cores, optuna_n_jobs ≈ budget // workers.
+# parallel_skip_tf: TF models always run serially after the pool drains
+#   (single-GPU contention + thread caps would hurt them).
+# parallel_pin_threads: inside each worker, force OMP/MKL/OPENBLAS to 1 thread
+#   so estimator-level threading doesn't stack on top of the process pool.
+# Feature fusion (feature_fusion_method != 'None') falls back to serial automatically.
+parallel_train: 'N'
+parallel_workers: 'auto'
+parallel_skip_tf: True
+parallel_pin_threads: True
+#==========================================================================
 
 # Default hyperparameters used when hyperparameters_tuning == 'none'.
 # Reasonable starting points for binary classification on imbalanced fingerprint data.
@@ -98,6 +147,10 @@ hyperparameters:
   mlp:          {hidden_layer_sizes: [128, 64], alpha: 0.0001, learning_rate_init: 0.001, activation: 'relu', max_iter: 500, early_stopping: True, random_state: 42}
   lgbm:         {scale_pos_weight: 8, n_estimators: 3000, learning_rate: 0.02, num_leaves: 31, min_child_samples: 100, subsample: 0.7, subsample_freq: 1, colsample_bytree: 0.6, reg_alpha: 0.5, reg_lambda: 5.0, random_state: 42, verbosity: -1}
   lgbmregressor: {n_estimators: 3000, learning_rate: 0.02, num_leaves: 31, min_child_samples: 100, subsample: 0.7, subsample_freq: 1, colsample_bytree: 0.6, reg_alpha: 0.5, reg_lambda: 5.0, random_state: 42, verbosity: -1}
+  rfregressor:  {n_estimators: 500, max_depth: 20, min_samples_split: 5, min_samples_leaf: 2, max_features: 'sqrt', n_jobs: -1, random_state: 42}
+  xgbregressor: {n_estimators: 3000, learning_rate: 0.02, max_depth: 6, min_child_weight: 5, subsample: 0.7, colsample_bytree: 0.6, reg_alpha: 0.5, reg_lambda: 5.0, n_jobs: -1, random_state: 42, verbosity: 0}
+  catboostregressor: {iterations: 1000, learning_rate: 0.05, depth: 6, l2_leaf_reg: 5, random_seed: 42}
+  ridge:        {alpha: 1.0, fit_intercept: True, solver: 'auto', random_state: 42}
   catboost:     {iterations: 1000, learning_rate: 0.05, depth: 6, l2_leaf_reg: 5, auto_class_weights: 'Balanced', random_seed: 42}
   tf_ff:        {input_shape: 2048, hidden_units: [128, 64], learning_rate: 0.001}
   tf_cnn1D:     {input_shape: 2048, conv_layers: [[64, 3], [32, 3]], ff_layers: [64, 32], learning_rate: 0.001}
@@ -155,7 +208,7 @@ num_top_models: 2
 # BestModels/fusion_weights.{pkl,csv,_summary.csv}. fusion_weighted_C is the
 # L2 regularization strength of that meta-learner (passed as 1/C to LR).
 fusion_method: ['mean', 'max', 'weighted']
-fusion_weighted_C: 1.0
+fusion_weighted_C: 1.0 # LogisticRegression C for the 'weighted' meta-learner — inverse L2 regularization (smaller = smoother weights, larger = sharper); useful range 0.01-10.0.
 #==========================================================================
 
 

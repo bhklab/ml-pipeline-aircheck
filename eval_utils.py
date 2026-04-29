@@ -26,10 +26,29 @@ from sklearn.metrics import (
     classification_report,
     balanced_accuracy_score,
     average_precision_score,
+    mean_squared_error,
+    mean_absolute_error,
+    r2_score,
 )
 #-------------------------------------
-def evaluate_model(model_path, X_test, y_test, area_hits_K=500):
-    #-----
+def evaluate_model(model_path, X_test, y_test, area_hits_K=500,
+                   regression_threshold='median', regression_target=None):
+    """Evaluate a saved model on (X_test, y_test).
+
+    Classifier path (model has predict_proba):
+      y_proba = model.predict_proba(X)[:, 1]   # probability of positive class
+      y_pred  = model.predict(X)               # binary
+
+    Regressor path (no predict_proba):
+      y_proba = model.predict(X)               # continuous score, used for RANKING
+      y_pred  = (y_proba > threshold).astype(int)
+        - threshold = median(y_proba) when regression_threshold == 'median'
+        - threshold = float(regression_threshold) otherwise
+      regression_target (continuous true values) enables Test_RMSE / Test_MAE / Test_R2.
+
+    y_test stays the binary LABEL in both paths so ranking metrics
+    (HitsAt*, AreaHitsAtK, NDCG, BEDROC, ...) are comparable across model types.
+    """
     if not os.path.exists(model_path):
         print(f"Error: Model file not found at '{model_path}'. Please ensure the model was saved correctly during training.")
         raise SystemExit("Terminating: Model file missing.")
@@ -41,10 +60,26 @@ def evaluate_model(model_path, X_test, y_test, area_hits_K=500):
     else:
         with open(model_path, 'rb') as f:
             model = pickle.load(f)
+        if hasattr(model, 'predict_proba'):
             y_pred = model.predict(X_test)
             y_proba = model.predict_proba(X_test)[:, 1]
-    #-----
-    metrics = calculate_metrics(X_test, y_test, y_pred, y_proba, area_hits_K=area_hits_K)
+        else:
+            # Regressor: predict() returns a continuous score; binarize for y_pred.
+            y_proba = np.asarray(model.predict(X_test)).flatten()
+            if isinstance(regression_threshold, str) and regression_threshold.lower() == 'median':
+                threshold = float(np.median(y_proba))
+            else:
+                try:
+                    threshold = float(regression_threshold)
+                except (TypeError, ValueError):
+                    threshold = float(np.median(y_proba))
+            y_pred = (y_proba > threshold).astype(int)
+
+    metrics = calculate_metrics(
+        X_test, y_test, y_pred, y_proba,
+        area_hits_K=area_hits_K,
+        regression_target=regression_target,
+    )
     return metrics, y_pred, y_proba
 #-------------------------------------
 
@@ -221,7 +256,7 @@ def bedroc_at_k(y_true, y_score, K, alpha=20.0):
     return score / ideal
 
 
-def calculate_metrics(X_test, y_test, y_pred, y_proba, area_hits_K=500):
+def calculate_metrics(X_test, y_test, y_pred, y_proba, area_hits_K=500, regression_target=None):
     ppv = precision_score(y_test, y_pred, zero_division=0)
     p_ppv = plate_ppv(y_test, y_pred, top_n=128)
     
@@ -289,6 +324,26 @@ def calculate_metrics(X_test, y_test, y_pred, y_proba, area_hits_K=500):
         f"NDCG_at_{K}": ndcg_K,
         f"BEDROC_alpha20_at{K}": bedroc_K,
     }
+
+    # Regression-only metrics. Populated when caller (regressor path in
+    # evaluate_model) supplies the continuous true targets via regression_target.
+    # Classifier rows leave these as None so the column exists but is empty.
+    if regression_target is not None:
+        try:
+            y_true_cont = np.asarray(regression_target, dtype=float)
+            y_pred_cont = np.asarray(y_proba, dtype=float)  # raw regressor score
+            metrics["RMSE"] = float(np.sqrt(mean_squared_error(y_true_cont, y_pred_cont)))
+            metrics["MAE"] = float(mean_absolute_error(y_true_cont, y_pred_cont))
+            metrics["R2"] = float(r2_score(y_true_cont, y_pred_cont))
+        except Exception as exc:
+            print(f"Warning: regression metrics failed ({exc}); leaving as None.")
+            metrics["RMSE"] = None
+            metrics["MAE"] = None
+            metrics["R2"] = None
+    else:
+        metrics["RMSE"] = None
+        metrics["MAE"] = None
+        metrics["R2"] = None
 
     return metrics
 
@@ -405,9 +460,11 @@ def test_pipeline(config,
             # print("testing models, row:", rowcount)
             model_path = row["ModelPath"]
             model_name = row ["ModelType"]
-            tf_models = config['tf_models']  
+            tf_models = config['tf_models']
+            regressor_models = config.get('regressor_models', [])
             tf_dnn = True if model_name in tf_models else False
-            
+            is_regressor = model_name in regressor_models
+
             if os.path.isdir(model_path):
                 if tf_dnn:
                     model_path = os.path.join(model_path, "model.h5")
@@ -415,17 +472,29 @@ def test_pipeline(config,
                     model_path = os.path.join(model_path, "model.pkl")
 
             column_name = row["ColumnName"]
-            
+
             if config['feature_fusion_method']=="None":
                 # Load test data
                 X_test, Y_test = load_data(test_path, [column_name], label_column_test, nrows_test)
-                #Y_test_array = np.stack(Y_test.iloc[:, 0])
-                #X_test_array = np.stack(X_test[column_name])
             Y_test_array = np.stack(Y_test.iloc[:, 0])
             X_test_array = np.stack(X_test[column_name])
+
+            # For regressor rows: also load the continuous target so RMSE/MAE/R^2
+            # are reported alongside the binary ranking metrics.
+            regression_target = None
+            if is_regressor:
+                regression_column_test = config.get('regression_column_test', []) or []
+                if regression_column_test:
+                    _, Y_test_cont_df = load_data(
+                        test_path, [column_name], regression_column_test, nrows_test,
+                    )
+                    regression_target = np.stack(Y_test_cont_df.iloc[:, 0]).astype(float)
+
             test_metrics, y_pred, y_prob  = evaluate_model(
                 model_path, X_test_array, Y_test_array,
                 area_hits_K=int(config.get('area_hits_K', 500)),
+                regression_threshold=config.get('regression_threshold', 'median'),
+                regression_target=regression_target,
             )
             
             
@@ -480,9 +549,12 @@ def test_pipeline(config,
     df_updated.to_csv(results_path, index=False)
 
     # Compact summary CSV with only the headline test-time columns.
+    K = int(config.get('area_hits_K', 500))
     selected_columns = [
         "TrainFileName", "TestFile", "ColumnName", "ModelType",
         "Test_HitsAt50", "Test_HitsAt100", "Test_HitsAt200", "Test_HitsAt500",
+        f"Test_AreaHitsAt{K}", f"Test_AreaHitsAt{K}_norm",
+        f"Test_LogWeightedHitsAt{K}", f"Test_NDCG_at_{K}",
     ]
     keep = [c for c in selected_columns if c in df_updated.columns]
     if keep:
