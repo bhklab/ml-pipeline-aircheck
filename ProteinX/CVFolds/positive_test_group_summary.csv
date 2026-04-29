@@ -1,9 +1,0 @@
-fold,cluster_ids,n_excluded_pos_total,n_test_pos_final
-1,[np.int64(0)],703,100
-2,[np.int64(1)],507,100
-3,[np.int64(5)],291,100
-4,[np.int64(4)],131,100
-5,[np.int64(6)],112,100
-6,[np.int64(19)],103,100
-7,"[np.int64(9), np.int64(10), np.int64(15), np.int64(13)]",103,100
-8,"[np.int64(16), np.int64(8), np.int64(3), np.int64(14), np.int64(18), np.int64(17)]",107,100
