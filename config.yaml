@@ -12,8 +12,8 @@ Screen: 'N'  # Running test phase (N:for no, Y: for yes)
 
 
 # Data:
-train_data: [D:\0000-UHN\PGK2\ProcessedData\DataToUse\Senarios\Senario3-Nabin\BalancedTrain\4columns_bitbirch-processing_cluster-info_ml-ready_PGK2_CDD_deduplicated_balanced_2x.parquet]
-test_data: [ D:\0000-UHN\PGK2\ASMS\Data Shared by Mttheiu\TestFileWithAllAsmsPGK2_edited\4columns_ASMS_PGK2_allNegatives.parquet]
+train_data: [D:\train.parquet]   # list of one or more .parquet paths; each must contain the desired_columns + label_column_train (and regression_column_train if any regressor is in desired_models)
+test_data:  [D:\test.parquet]    # list of one or more .parquet paths; each must contain the desired_columns + label_column_test (and smiles_column for SMILES-aligned outputs)
 
 
 # desired_columns:  [ECFP4, ECFP6, FCFP4, FCFP6, TOPTOR, MACCS, RDK, AVALON, ATOMPAIR]           
@@ -56,7 +56,7 @@ balance_ratios: [1, 2, 4, 8] # balance_ratios: [1, 2, 4, 8]
 
 # Screening:
 #==========================================================================
-screen_data: [D:\0000-UHN\PGK2\ASMS\Data Shared by Mttheiu\TestFileWithAllAsmsPGK2_edited\4columns_ASMS_PGK2_allNegatives.parquet]
+screen_data: [D:\screen.parquet]   # list of one or more .parquet (or .csv) paths to screen; each must contain the desired_columns + smiles_column (LABEL not required — screening produces predicted scores, not metrics)
 smiles_column: "SMILES"
 chemistry_filters: 'y' #  (N:for no, Y: for yes)
 #==========================================================================
