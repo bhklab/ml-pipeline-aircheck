@@ -279,11 +279,11 @@ def train_pipeline(config,
     if Train.lower() != 'y':
         return
 
-    # Resolve parallel settings (auto formula or explicit ints).
+    # Resolve parallel settings (auto formula or explicit ints). Runs unconditionally
+    # so the serial path also benefits from 'auto'-resolved optuna_n_jobs in config.
     parallel_workers, optuna_n_jobs_resolved, parallel_train_enabled, pin_threads, skip_tf = (
         _resolve_parallel_settings(config)
     )
-    # Make the resolved value visible to anything else that reads config.
     config['optuna_n_jobs'] = optuna_n_jobs_resolved
 
     # Parallel training is unsupported with feature fusion (the fused X_train
@@ -1047,8 +1047,14 @@ def cross_validate_and_save_models(config, X_train_array, Y_train_array, model_n
             f"All CV folds failed for {model_name}/{column_name}; see training_failures.csv."
         )
 
-    # Average metrics across folds
-    avg_metrics = {metric: np.mean([fold[metric] for fold in fold_metrics]) for metric in fold_metrics[0]}
+    # Average metrics across folds, filtering per-metric None values so a metric
+    # that's undefined for some folds (e.g. RMSE/MAE/R2 on classifier runs, or
+    # AUC-ROC on a single-class fold) doesn't crash np.mean with None+None. If
+    # every fold returned None for a metric, the average is also None.
+    avg_metrics = {}
+    for metric in fold_metrics[0]:
+        vals = [f[metric] for f in fold_metrics if f.get(metric) is not None]
+        avg_metrics[metric] = float(np.mean(vals)) if vals else None
     return avg_metrics
 #==============================================================================
 #==============================================================================
