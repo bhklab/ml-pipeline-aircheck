@@ -1,5 +1,15 @@
 
-run_name: "test" # Run Name (used for folder naming; avoid spaces/special characters)
+# Sample / template configuration for the AIRCHECK ML pipeline.
+#
+# The real config.yaml is git-ignored so personal/local paths don't end up
+# in the repository. Copy this file to config.yaml and edit the placeholder
+# paths and any settings you want to override:
+#     cp config_sample.yaml config.yaml          # macOS / Linux
+#     Copy-Item config_sample.yaml config.yaml   # PowerShell
+#
+# Then run:    python aircheck_pipeline.py
+
+run_name: "Results" # Run Name (used for folder naming; avoid spaces/special characters)
 
 experiment_name: "TestExp" # Experiment Name
 
@@ -12,14 +22,11 @@ Screen: 'N'  # Running test phase (N:for no, Y: for yes)
 
 
 # Data:
-#train_data: [D:\train.parquet]   # list of one or more .parquet paths; each must contain the desired_columns + label_column_train (and regression_column_train if any regressor is in desired_models)
-#test_data:  [D:\test.parquet]    # list of one or more .parquet paths; each must contain the desired_columns + label_column_test (and smiles_column for SMILES-aligned outputs)
-train_data: [D:\0000-UHN\PGK2\ProcessedData\DataToUse\Senarios\Senario3-Nabin\BalancedTrain\4columns_bitbirch-processing_cluster-info_ml-ready_PGK2_CDD_deduplicated_balanced_2x.parquet]
-test_data: [ D:\0000-UHN\PGK2\ASMS\Data Shared by Mttheiu\TestFileWithAllAsmsPGK2_edited\4columns_ASMS_PGK2_allNegatives.parquet]
+train_data: [D:\train.parquet]   # list of one or more .parquet paths; each must contain the desired_columns + label_column_train (and regression_column_train if any regressor is in desired_models)
+test_data:  [D:\test.parquet]    # list of one or more .parquet paths; each must contain the desired_columns + label_column_test (and smiles_column for SMILES-aligned outputs)
 
 
-# desired_columns:  [ECFP4, ECFP6, FCFP4, FCFP6, TOPTOR, MACCS, RDK, AVALON, ATOMPAIR]           
-desired_columns: [ECFP4 , FCFP4]
+# desired_columns:  [ECFP4, ECFP6, FCFP4, FCFP6, TOPTOR, MACCS, RDK, AVALON, ATOMPAIR]
 desired_columns: [ECFP4]
 
 # Binary label columns (0/1) used by classifiers as the training target and by
@@ -41,8 +48,8 @@ label_column_test: [LABEL]
 #   screening data have no assay-derived score, and "no signal" = 0 is the
 #   chosen semantics. If 0 isn't the right default for your data, pre-fill the
 #   column yourself in the parquet before pointing the pipeline at it.
-regression_column_train: [target_count]   # e.g. [zscore, count]
-regression_column_test:  []               # [] = test parquet has no continuous target; ranking metrics still run
+regression_column_train: []   # e.g. [zscore, target_count]
+regression_column_test:  []   # [] = test parquet has no continuous target; ranking metrics still run
 
 # How to binarize a regressor's continuous prediction into y_pred so threshold-
 # based metrics (F1, accuracy, ...) can be computed alongside classifier metrics.
@@ -55,7 +62,6 @@ regression_column_test:  []               # [] = test parquet has no continuous 
 #   - zscore-based target:                            regression_threshold: 0.2
 #   - if unsure or the score scale varies per file:   regression_threshold: 'median'
 regression_threshold: 'median'
-regression_threshold: '1'
 
 # How to binarize a CLASSIFIER's predicted probability into y_pred (used for F1,
 # accuracy, plate_ppv, the CV mean-prediction parquet, etc.). Default 0.5 matches
@@ -71,12 +77,12 @@ nrows_test: 'None'
 # Note: selecting feature fusion makes the code so slow. Avoid it for big datasets!!
 # Single mode: 'None' / 'All' / 'Pairwise'  -- e.g.  feature_fusion_method: 'Pairwise'
 # Combine modes by passing a list, e.g.       feature_fusion_method: ['None', 'All', 'Pairwise']
-feature_fusion_method: ['None'] # options: None, All, Pairwise (or a list of any combination) feature_fusion_method: ['None', 'All', 'Pairwise']
+feature_fusion_method: ['None']
 
 
 # create_balanced_datasets
 balance_flag: False # Creating blanced train sets (True/False)
-balance_ratios: [1, 2, 4, 8] # balance_ratios: [1, 2, 4, 8]
+balance_ratios: [1, 2, 4, 8]
 #==========================================================================
 
 
@@ -108,7 +114,7 @@ chemistry_filters: 'y' #  (N:for no, Y: for yes)
 #   catboost:  CatBoost gradient-boosted-tree classifier — handles categorical features natively, supports class imbalance via auto_class_weights
 #   tf_ff:     TensorFlow/Keras simple feed-forward neural network (configurable hidden_units)
 #   tf_cnn1D:  TensorFlow/Keras 1-D CNN (configurable conv_layers + ff_layers, e.g. for ECFP-bit sequences)
-# Regressors (require regression_column_train / regression_column_test in config):
+# Regressors (require regression_column_train; regression_column_test optional):
 #   lgbmregressor:     LightGBM gradient-boosted-tree regressor — predicts a continuous target; the pipeline still
 #                      ranks molecules by the predicted score and reports the same ranking metrics as classifiers,
 #                      plus regression metrics (RMSE / MAE / R2). Score is binarized via regression_threshold to compute
@@ -121,9 +127,6 @@ chemistry_filters: 'y' #  (N:for no, Y: for yes)
 #                  lgbmregressor, rfregressor, xgbregressor, catboostregressor, ridge]
 
 desired_models: [lgbm]
-# desired_models: [lgbmregressor, rfregressor, xgbregressor, catboostregressor, ridge]
- 
-#desired_models: [lgbmregressor]
 #desired_models: [lgbmregressor, rfregressor, xgbregressor, catboostregressor, ridge]
 
 # Models' Hyperparameters tuning
@@ -238,8 +241,3 @@ num_top_models: 2
 fusion_method: ['mean', 'max', 'weighted']
 fusion_weighted_C: 1.0 # LogisticRegression C for the 'weighted' meta-learner — inverse L2 regularization (smaller = smoother weights, larger = sharper); useful range 0.01-10.0.
 #==========================================================================
-
-
-
-
-
