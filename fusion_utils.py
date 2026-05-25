@@ -546,10 +546,13 @@ def fusion_pipeline(config,
     # Path to Best Models
     best_models_folder = os.path.join(RunFolderName, "BestModels")
     valid_extensions = [".pkl", ".h5", ".pt"]  # Add .pt if you support PyTorch later
+    # Skip the weighted-fusion meta-learner pickle (and any other helper artifacts
+    # whose name doesn't end with the conventional '_model.{pkl,h5}' suffix).
+    excluded_basenames = {"fusion_weights.pkl"}
     model_files = [
         os.path.join(best_models_folder, f)
         for f in os.listdir(best_models_folder)
-        if any(f.endswith(ext) for ext in valid_extensions)
+        if any(f.endswith(ext) for ext in valid_extensions) and f not in excluded_basenames
     ]
 
     if not model_files:
@@ -614,11 +617,13 @@ def fusion_pipeline(config,
             # Load test data — read all base columns at once
             X_test, Y_test = load_data(test_path, base_cols, label_column_test, nrows_test)
             Y_test_array = np.stack(Y_test.iloc[:, 0])
+            # Chunked uint8 stack — same OOM avoidance as in eval_utils.test_pipeline.
+            from data_utils import stack_to_uint8
             if len(base_cols) == 1:
-                X_test_array = np.stack(X_test[base_cols[0]])
+                X_test_array = stack_to_uint8(X_test[base_cols[0]])
             else:
                 X_test_array = np.concatenate(
-                    [np.stack(X_test[c]) for c in base_cols], axis=1
+                    [stack_to_uint8(X_test[c]) for c in base_cols], axis=1
                 )
             # Try to get SMILES column from file, otherwise from X_test if present
             if str(test_path).lower().endswith(".parquet"):
@@ -635,17 +640,55 @@ def fusion_pipeline(config,
             print ("read test end")
 
 
+            # Row-chunked predict (same OOM avoidance as eval_utils.evaluate_model).
+            chunk_size = 20000
+            def _predict_chunks_local(predict_fn, two_d_out=False):
+                n = X_test_array.shape[0]
+                outs = []
+                for start in range(0, n, chunk_size):
+                    end = min(start + chunk_size, n)
+                    outs.append(predict_fn(X_test_array[start:end]))
+                if not outs:
+                    return np.empty((0, 2) if two_d_out else (0,), dtype=np.float32)
+                if two_d_out:
+                    return np.concatenate(outs, axis=0)
+                return np.concatenate([np.asarray(o).flatten() for o in outs], axis=0)
+
             if ext == ".pkl":
                 with open(model_file, 'rb') as f:
                     model = pickle.load(f)
 
-                y_pred = model.predict(X_test_array)
-                y_proba = model.predict_proba(X_test_array)[:, 1]
+                if hasattr(model, 'predict_proba'):
+                    # Classifier — use predicted positive-class probability.
+                    proba_2d = _predict_chunks_local(lambda x: model.predict_proba(x), two_d_out=True)
+                    y_proba = proba_2d[:, 1]
+                    try:
+                        bt = float(config.get('binary_threshold', 0.5))
+                    except (TypeError, ValueError):
+                        bt = 0.5
+                    y_pred = (y_proba > bt).astype(int)
+                else:
+                    # Regressor — predict() returns a continuous score; binarize
+                    # with regression_threshold (median or fixed cutoff).
+                    y_proba = _predict_chunks_local(lambda x: np.asarray(model.predict(x)).flatten())
+                    rt = config.get('regression_threshold', 'median')
+                    if isinstance(rt, str) and rt.lower() == 'median':
+                        threshold = float(np.median(y_proba))
+                    else:
+                        try:
+                            threshold = float(rt)
+                        except (TypeError, ValueError):
+                            threshold = float(np.median(y_proba))
+                    y_pred = (y_proba > threshold).astype(int)
 
             elif ext == ".h5":
                 model = load_model(model_file)
-                y_proba = model.predict(X_test_array).flatten()
-                y_pred = (y_proba > 0.5).astype(int)
+                y_proba = _predict_chunks_local(lambda x: model.predict(x).flatten())
+                try:
+                    bt = float(config.get('binary_threshold', 0.5))
+                except (TypeError, ValueError):
+                    bt = 0.5
+                y_pred = (y_proba > bt).astype(int)
 
             else:
                 raise ValueError(f"Unsupported model format: {ext}")

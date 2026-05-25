@@ -1,5 +1,5 @@
 
-run_name: "XX2"
+run_name: "test" # Run Name (used for folder naming; avoid spaces/special characters)
 
 experiment_name: "TestExp" # Experiment Name
 
@@ -12,12 +12,15 @@ Screen: 'N'  # Running test phase (N:for no, Y: for yes)
 
 
 # Data:
-train_data: [D:\train.parquet]   # list of one or more .parquet paths; each must contain the desired_columns + label_column_train (and regression_column_train if any regressor is in desired_models)
-test_data:  [D:\test.parquet]    # list of one or more .parquet paths; each must contain the desired_columns + label_column_test (and smiles_column for SMILES-aligned outputs)
+#train_data: [D:\train.parquet]   # list of one or more .parquet paths; each must contain the desired_columns + label_column_train (and regression_column_train if any regressor is in desired_models)
+#test_data:  [D:\test.parquet]    # list of one or more .parquet paths; each must contain the desired_columns + label_column_test (and smiles_column for SMILES-aligned outputs)
+train_data: [D:\0000-UHN\PGK2\ProcessedData\DataToUse\Senarios\Senario3-Nabin\BalancedTrain\4columns_bitbirch-processing_cluster-info_ml-ready_PGK2_CDD_deduplicated_balanced_2x.parquet]
+test_data: [ D:\0000-UHN\PGK2\ASMS\Data Shared by Mttheiu\TestFileWithAllAsmsPGK2_edited\4columns_ASMS_PGK2_allNegatives.parquet]
 
 
 # desired_columns:  [ECFP4, ECFP6, FCFP4, FCFP6, TOPTOR, MACCS, RDK, AVALON, ATOMPAIR]           
 desired_columns: [ECFP4 , FCFP4]
+desired_columns: [ECFP4]
 
 # Binary label columns (0/1) used by classifiers as the training target and by
 # every model (classifier OR regressor) as the ranking ground-truth at evaluation
@@ -27,17 +30,40 @@ label_column_train: [LABEL]
 label_column_test: [LABEL]
 
 # Continuous target columns for regression models (e.g. lgbmregressor).
-# REQUIRED when desired_models contains a regressor; classifiers ignore them
-# and train on label_column_train / label_column_test as before.
-regression_column_train: []   # e.g. [zscore, count]
-regression_column_test:  []   # e.g. [zscore, count]
+# regression_column_train: REQUIRED when desired_models contains a regressor —
+#   it's the continuous target the regressor fits against. Classifiers ignore it.
+# regression_column_test: OPTIONAL — only used to report RMSE / MAE / R^2 for
+#   regressor rows. Leave as [] if the test parquet has no continuous target;
+#   ranking metrics (HitsAt*, AreaHitsAtK, NDCG, BEDROC) and threshold metrics
+#   (F1, accuracy, ...) are computed against label_column_test regardless.
+# Missing values: any NaN in these columns is replaced with 0.0 before fitting
+#   (and before RMSE/MAE/R^2 are computed). Rationale: most LABEL=0 rows in
+#   screening data have no assay-derived score, and "no signal" = 0 is the
+#   chosen semantics. If 0 isn't the right default for your data, pre-fill the
+#   column yourself in the parquet before pointing the pipeline at it.
+regression_column_train: [target_count]   # e.g. [zscore, count]
+regression_column_test:  []               # [] = test parquet has no continuous target; ranking metrics still run
 
 # How to binarize a regressor's continuous prediction into y_pred so threshold-
 # based metrics (F1, accuracy, ...) can be computed alongside classifier metrics.
 # 'median' = each test set's own median score (auto-adapts to the score scale).
-# A number (e.g. 0.5) = fixed cutoff. Has no effect on classifier rows or on
-# ranking metrics (HitsAt*, AreaHitsAtK, NDCG, BEDROC) which use the score directly.
+# A number = fixed cutoff. Has no effect on classifier rows or on ranking metrics
+# (HitsAt*, AreaHitsAtK, NDCG, BEDROC) which use the raw score directly.
+# Recommended starting points (ADJUST TO YOUR TASK — these are starting points
+# only, not universally correct values):
+#   - count-based target (e.g. read counts / ncount): regression_threshold: 2
+#   - zscore-based target:                            regression_threshold: 0.2
+#   - if unsure or the score scale varies per file:   regression_threshold: 'median'
 regression_threshold: 'median'
+regression_threshold: '1'
+
+# How to binarize a CLASSIFIER's predicted probability into y_pred (used for F1,
+# accuracy, plate_ppv, the CV mean-prediction parquet, etc.). Default 0.5 matches
+# the standard sklearn convention. Adjust per task if you want a stricter / looser
+# precision-recall trade-off (e.g. 0.3 for higher recall, 0.7 for higher precision).
+# Has no effect on regressor rows (those use regression_threshold) or on ranking
+# metrics, which always use the raw probability directly.
+binary_threshold: 0.5
 
 nrows_train: 'None' # integer or 'None'
 nrows_test: 'None'
@@ -95,6 +121,8 @@ chemistry_filters: 'y' #  (N:for no, Y: for yes)
 #                  lgbmregressor, rfregressor, xgbregressor, catboostregressor, ridge]
 
 desired_models: [lgbm]
+# desired_models: [lgbmregressor, rfregressor, xgbregressor, catboostregressor, ridge]
+ 
 #desired_models: [lgbmregressor]
 #desired_models: [lgbmregressor, rfregressor, xgbregressor, catboostregressor, ridge]
 

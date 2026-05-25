@@ -4,6 +4,28 @@ import os
 import shutil
 
 
+def stack_to_uint8(series, batch_size=10000):
+    """Stack a pandas Series of 1-D numpy arrays into an (N_rows, N_bits) uint8 matrix,
+    built in chunks so we never allocate the whole float32 source at once.
+
+    Memory: peak ~ batch_size * N_bits * 4 bytes (the temporary per-chunk float32
+    stack) + the destination (N_rows * N_bits bytes). For a 460k x 2048 file the
+    destination is ~0.9 GiB instead of ~3.5 GiB at float32.
+
+    Safe for binary fingerprints (0/1) and count fingerprints with values <= 255.
+    For count fingerprints with values > 255 this will silently overflow — in that
+    case use np.stack(...).astype(np.int16) or the wider-dtype helper instead.
+    """
+    n_rows = len(series)
+    if n_rows == 0:
+        return np.empty((0, 0), dtype=np.uint8)
+    n_bits = len(series.iloc[0])
+    out = np.empty((n_rows, n_bits), dtype=np.uint8)
+    for start in range(0, n_rows, batch_size):
+        end = min(start + batch_size, n_rows)
+        out[start:end] = np.stack(series.iloc[start:end].values).astype(np.uint8)
+    return out
+
 
 def convert_columns_to_array(df, column_names):
     for col in column_names:

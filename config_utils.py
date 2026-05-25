@@ -185,21 +185,20 @@ def validate_config(config_path):
             if model not in supported_models:
                 errors.append(f"Unsupported model: {model}")
 
-    # If any regressor is requested, the continuous target columns are required.
+    # If any regressor is requested, the continuous TRAIN target column is required
+    # (the regressor needs something to fit against). The TEST target column is
+    # OPTIONAL — when missing/empty, the pipeline simply skips RMSE/MAE/R^2 in the
+    # test phase and still computes ranking + threshold metrics against
+    # label_column_test as usual.
     desired = config.get('desired_models', []) or []
     if any(m in regressor_models for m in desired):
         rc_train = config.get('regression_column_train')
-        rc_test = config.get('regression_column_test')
         if not isinstance(rc_train, list) or not rc_train:
             errors.append(
                 "regression_column_train must be a non-empty list (e.g. [pIC50]) when "
                 f"desired_models contains a regressor ({[m for m in desired if m in regressor_models]})."
             )
-        if not isinstance(rc_test, list) or not rc_test:
-            errors.append(
-                "regression_column_test must be a non-empty list (e.g. [pIC50]) when "
-                f"desired_models contains a regressor ({[m for m in desired if m in regressor_models]})."
-            )
+        # regression_column_test is intentionally allowed to be [] — no enforcement here.
 
     # Default the regression threshold so it never trips downstream code on classifier-only runs.
     rt = config.get('regression_threshold', 'median')

@@ -186,6 +186,10 @@ def _train_one_combo_worker(args):
         if is_regressor:
             _, Y_train_cont_df = load_data(train_path, [column_names_j], regression_column_train, nrows_train)
             Y_train_array = _np.stack(Y_train_cont_df.iloc[:, 0]).astype(float)
+            # Treat missing continuous targets as 0 — many LABEL=0 rows have no
+            # assay-derived score (e.g. zscore/ncount NaN). Leaving NaN would
+            # crash the regressor's .fit(); 0 is the agreed semantics for "no signal".
+            Y_train_array = _np.nan_to_num(Y_train_array, nan=0.0)
             Y_eval_array = Y_train_binary
         else:
             Y_train_array = Y_train_binary
@@ -388,6 +392,10 @@ def train_pipeline(config,
                             train_path, [column_names_j], regression_column_train, nrows_train,
                         )
                         Y_train_array = np.stack(Y_train_cont_df.iloc[:, 0]).astype(float)
+                        # Treat missing continuous targets as 0 — many LABEL=0 rows have no
+                        # assay-derived score (e.g. zscore/ncount NaN). Leaving NaN would
+                        # crash the regressor's .fit(); 0 is the agreed semantics for "no signal".
+                        Y_train_array = np.nan_to_num(Y_train_array, nan=0.0)
                         Y_eval_array = Y_train_binary  # binary labels for ranking metrics
                     else:
                         Y_train_array = Y_train_binary
@@ -994,6 +1002,7 @@ def cross_validate_and_save_models(config, X_train_array, Y_train_array, model_n
                 fold_model_path, CrossVal_data_test, CrossVal_eval_test,
                 area_hits_K=int(config.get('area_hits_K', 500)),
                 regression_threshold=config.get('regression_threshold', 'median'),
+                binary_threshold=config.get('binary_threshold', 0.5),
                 regression_target=regression_target,
             )
             fold_metrics.append(metrics)
@@ -1031,7 +1040,23 @@ def cross_validate_and_save_models(config, X_train_array, Y_train_array, model_n
 
             mean_df = df_meta_train.loc[appeared].reset_index(drop=True).copy()
             mean_df["y_prob"] = mean_prob[appeared]
-            mean_df["y_pred"] = (mean_df["y_prob"] > 0.5).astype(int)
+            # Binarize using the appropriate config-driven threshold:
+            #   - classifiers: binary_threshold (default 0.5; in [0,1])
+            #   - regressors:  regression_threshold ('median' of the eval scores
+            #                  or a fixed float matched to the target scale,
+            #                  e.g. ~2 for count, ~0.2 for zscore)
+            if is_regressor:
+                rt = config.get('regression_threshold', 'median')
+                if isinstance(rt, str) and rt.lower() == 'median':
+                    threshold = float(np.median(mean_df["y_prob"]))
+                else:
+                    try:
+                        threshold = float(rt)
+                    except (TypeError, ValueError):
+                        threshold = float(np.median(mean_df["y_prob"]))
+            else:
+                threshold = float(config.get('binary_threshold', 0.5))
+            mean_df["y_pred"] = (mean_df["y_prob"] > threshold).astype(int)
             mean_df["fold_count"] = count_prob[appeared]
 
             base = f"{train_filename}_{model_name}_{column_name}_mean"

@@ -32,12 +32,13 @@ from sklearn.metrics import (
 )
 #-------------------------------------
 def evaluate_model(model_path, X_test, y_test, area_hits_K=500,
-                   regression_threshold='median', regression_target=None):
+                   regression_threshold='median', regression_target=None,
+                   binary_threshold=0.5):
     """Evaluate a saved model on (X_test, y_test).
 
     Classifier path (model has predict_proba):
       y_proba = model.predict_proba(X)[:, 1]   # probability of positive class
-      y_pred  = model.predict(X)               # binary
+      y_pred  = (y_proba > binary_threshold).astype(int)   # default 0.5
 
     Regressor path (no predict_proba):
       y_proba = model.predict(X)               # continuous score, used for RANKING
@@ -53,19 +54,47 @@ def evaluate_model(model_path, X_test, y_test, area_hits_K=500,
         print(f"Error: Model file not found at '{model_path}'. Please ensure the model was saved correctly during training.")
         raise SystemExit("Terminating: Model file missing.")
 
+    # Row-chunked predict: avoids LightGBM/sklearn/Keras internally allocating a
+    # 3.5+ GiB float32 cast of the whole input matrix at once. We slice X_test by
+    # rows, run predict on each slice, concatenate.
+    chunk_size = 20000
+
+    def _predict_chunks(predict_fn, two_d_out=False):
+        n = X_test.shape[0]
+        outs = []
+        for start in range(0, n, chunk_size):
+            end = min(start + chunk_size, n)
+            outs.append(predict_fn(X_test[start:end]))
+        if not outs:
+            return np.empty((0, 2) if two_d_out else (0,), dtype=np.float32)
+        if two_d_out:
+            return np.concatenate(outs, axis=0)
+        return np.concatenate([np.asarray(o).flatten() for o in outs], axis=0)
+
     if model_path.endswith('.h5'):
         model = load_model(model_path)
-        y_proba = model.predict(X_test).flatten()
-        y_pred = (y_proba > 0.5).astype(int)
+        y_proba = _predict_chunks(lambda x: model.predict(x).flatten())
+        try:
+            bt = float(binary_threshold)
+        except (TypeError, ValueError):
+            bt = 0.5
+        y_pred = (y_proba > bt).astype(int)
     else:
         with open(model_path, 'rb') as f:
             model = pickle.load(f)
         if hasattr(model, 'predict_proba'):
-            y_pred = model.predict(X_test)
-            y_proba = model.predict_proba(X_test)[:, 1]
+            # Classifier — compute y_pred ourselves from y_proba so binary_threshold
+            # actually takes effect (model.predict() would silently use 0.5).
+            proba_2d = _predict_chunks(lambda x: model.predict_proba(x), two_d_out=True)
+            y_proba = proba_2d[:, 1]
+            try:
+                bt = float(binary_threshold)
+            except (TypeError, ValueError):
+                bt = 0.5
+            y_pred = (y_proba > bt).astype(int)
         else:
             # Regressor: predict() returns a continuous score; binarize for y_pred.
-            y_proba = np.asarray(model.predict(X_test)).flatten()
+            y_proba = _predict_chunks(lambda x: np.asarray(model.predict(x)).flatten())
             if isinstance(regression_threshold, str) and regression_threshold.lower() == 'median':
                 threshold = float(np.median(y_proba))
             else:
@@ -477,7 +506,17 @@ def test_pipeline(config,
                 # Load test data
                 X_test, Y_test = load_data(test_path, [column_name], label_column_test, nrows_test)
             Y_test_array = np.stack(Y_test.iloc[:, 0])
-            X_test_array = np.stack(X_test[column_name])
+            # Chunked uint8 stack — avoids the 3.5+ GiB float32 allocation that
+            # crashes on memory-tight machines for big test files. Safe for binary
+            # fingerprints and counts <= 255; see data_utils.stack_to_uint8.
+            from data_utils import stack_to_uint8
+            X_test_array = stack_to_uint8(X_test[column_name])
+            # Only drop X_test if we loaded it fresh in THIS iteration (no-fusion
+            # path). When feature fusion is on, X_test is loaded once outside the
+            # inner loop and reused across rows — deleting it here would break
+            # iteration 2+ with UnboundLocalError.
+            if config['feature_fusion_method']=="None":
+                del X_test
 
             # For regressor rows: also load the continuous target so RMSE/MAE/R^2
             # are reported alongside the binary ranking metrics.
@@ -489,12 +528,16 @@ def test_pipeline(config,
                         test_path, [column_name], regression_column_test, nrows_test,
                     )
                     regression_target = np.stack(Y_test_cont_df.iloc[:, 0]).astype(float)
+                    # Treat missing continuous targets as 0 (same convention as train side).
+                    # RMSE/MAE/R^2 will treat any NaN-target row as if its true score was 0.
+                    regression_target = np.nan_to_num(regression_target, nan=0.0)
 
             test_metrics, y_pred, y_prob  = evaluate_model(
                 model_path, X_test_array, Y_test_array,
                 area_hits_K=int(config.get('area_hits_K', 500)),
                 regression_threshold=config.get('regression_threshold', 'median'),
                 regression_target=regression_target,
+                binary_threshold=config.get('binary_threshold', 0.5),
             )
             
             
@@ -508,6 +551,10 @@ def test_pipeline(config,
             #df_meta = pd.read_parquet(test_path, columns=["SMILES", "LABEL"])
             #df_meta = pd.read_parquet(test_path, columns=["smiles", "label"])
             df_meta = pd.read_parquet(test_path, columns=[smiles_column_name, label_column_name])
+            # Mirror nrows_test so df_meta length matches y_pred/y_prob length;
+            # otherwise nrows_test < #parquet_rows produces a length mismatch on assignment.
+            if isinstance(nrows_test, int) and nrows_test > 0:
+                df_meta = df_meta.head(nrows_test)
 
             # add predictions
             df_meta["y_pred"] = y_pred
