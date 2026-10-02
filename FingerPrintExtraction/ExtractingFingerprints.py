@@ -77,10 +77,11 @@ def main():
     fingerprint_classes = {'ECFP4-count': HitGenECFP4(), 'ECFP4-binary': HitGenBinaryECFP4()}
     #fingerprint_classes = {'ECFP4': HitGenECFP4()}
     fingerprint_classes = {'FCFP4': HitGenFCFP4(), 'TOPTOR': HitGenTopTor(), 'ATOMPAIR': HitGenAtomPair()}
-
+    fingerprint_classes = {'FCFP6': HitGenFCFP6()}
+    
     input_file = r"Data.parquet" # Parquet file
     output_file = r"Data_FPs.parquet"
-    
+ 
     process_file(input_file, output_file, fingerprint_classes, 'SMILES')
 
 if __name__ == "__main__":

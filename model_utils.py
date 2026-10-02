@@ -690,6 +690,13 @@ def create_cv_folds(config, RunFolderName):
     _build_cluster_folds. The clustering feature is ECFP4 when present,
     otherwise the first available column from VALID_DESCRIPTORS.
     """
+    # CV folds only feed training/HPO, so skip building them when training is off.
+    # Mirrors the Train gate in train_pipeline; lets a Test-only run skip the
+    # (potentially expensive cluster) split it would never use.
+    if config.get('Train', 'N').lower() != 'y':
+        print("Skipping CV fold creation because Train is not 'Y'.")
+        return
+
     cv_method = config.get('cv_method', 'stratified').lower()
     train_path = config['train_data'][0]
     label_col = config['label_column_train'][0]
@@ -765,6 +772,10 @@ def plot_cv_folds_umap(config, RunFolderName):
 
     Output: {RunFolderName}/CVFolds/umap_fold_{i}.png
     """
+    if config.get('Train', 'N').lower() != 'y':
+        print("Skipping CV fold UMAP plots because Train is not 'Y'.")
+        return
+
     import umap
     import matplotlib.pyplot as plt
 

@@ -216,11 +216,12 @@ def add_fcfp6_streaming(input_file, output_file,
 
 
 def main():
-    input_file  = r"D:\0000-UHN\PGK2\PGK2-Challange-splits\bitbirch\fold0.csv"
-    output_file = r"D:\0000-UHN\PGK2\PGK2-Challange-splits\bitbirch\fold0_withfps.csv"
+    input_file  = r"D:\0000-UHN\PGK2\PGK2-Challange-splits\svd\fold1.csv"
+    output_file = r"D:\0000-UHN\PGK2\PGK2-Challange-splits\svd\fold1_ECFP4.csv"
 
     # Pick any subset of FP_CATALOGUE keys — order is preserved in the output schema.
     fingerprints_to_add = ['ECFP4', 'FCFP4', 'ATOMPAIR', 'TOPTOR']
+    fingerprints_to_add = ['ECFP4']
 
     add_fingerprints_streaming(
         input_file=input_file,

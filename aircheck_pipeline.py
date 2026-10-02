@@ -95,8 +95,8 @@ def run_pipeline(config_name="config.yaml"):
     plot_fusion_hit_curves(config, RunFolderName)
     
     # Virtual Screening: Calculating screening data probability, applying chemistry filters, and clustering results
-    #print("Step 7: Virtual screening")
-    #screening_pipeline(config, RunFolderName, load_data, fuse_columns, evaluate_model, get_model, train_model)
+    print("Step 7: Virtual screening")
+    screening_pipeline(config, RunFolderName, load_data, fuse_columns, evaluate_model, get_model, train_model)
     
     #print("Step 8: Logging the results using mlflow")
     # Loggingparameters, metric, artifacts and models using mlflow
